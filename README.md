@@ -1,0 +1,1 @@
+# @ioris/tokenizer-kuromoji
