@@ -203,7 +203,7 @@ function convertTokensToLineArgs(
         const begin =
           wordPosition === 1
             ? timeline.begin
-            : wordAcc[wordAcc.length]?.end || 0;
+            : wordAcc[wordAcc.length - 1]?.end || 0;
         const lastTokenInWord = wordPosition === tokens.size;
         const afterFeatures = tokens.get(wordPosition + 1)?.features;
         const hasNewLine = checkMatchedRules({
