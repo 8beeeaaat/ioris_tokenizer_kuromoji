@@ -88,8 +88,8 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
             text: '変な感じ 全然慣れないや',
           },
           {
-            begin: 25,
-            end: 26,
+            begin: 26,
+            end: 28,
             text: 'ふたりぼっちでも大作戦 叶えたいことが曇らないように',
           },
         ],
@@ -126,5 +126,9 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
     expect(paragraph.allLines()[9].text()).toBe(
       'ふたりぼっちでも大作戦\n叶えたいことが曇らないように'
     );
+  });
+
+  it('should return the voids count', () => {
+    expect(paragraph.voids().length).toBe(9);
   });
 });
