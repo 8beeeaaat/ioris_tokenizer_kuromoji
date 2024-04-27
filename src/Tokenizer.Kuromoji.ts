@@ -129,12 +129,13 @@ export function LineArgsTokenizer(props: {
   lineArgs: LineArgs;
 }): Map<number, LineArgs> {
   const { tokenizer, lineArgs } = props;
-  const tokensByLinePosition = Array.from(lineArgs.timelines).reduce<
+  const tokensByLinePosition = lineArgs.timelines.reduce<
     Map<
       number,
       Map<number, { features: IpadicFeatures; timeline: WordTimeline }>
     >
-  >((acc, [timelinePosition, timeline]) => {
+  >((acc, timeline, index) => {
+    const timelinePosition = index + 1;
     const tokens = tokenizer.tokenize(timeline.text);
     const last = acc.get(timelinePosition) || new Map();
 
@@ -156,7 +157,7 @@ export function LineArgsTokenizer(props: {
       }
 
       if (currentWordText === currentFeaturesText) {
-        const timeline = lineArgs.timelines.get(acc.size + 1);
+        const timeline = lineArgs.timelines[acc.size];
         const newMap = new Map();
         newMap.set(1, {
           features,
@@ -164,7 +165,7 @@ export function LineArgsTokenizer(props: {
         });
         acc.set(timelinePosition, newMap);
       } else {
-        const timeline = lineArgs.timelines.get(timelinePosition);
+        const timeline = lineArgs.timelines[timelinePosition - 1];
         if (timeline) {
           last.set(last.size + 1, {
             features,
@@ -202,7 +203,7 @@ function convertTokensToLineArgs(
         const begin =
           wordPosition === 1
             ? timeline.begin
-            : wordAcc.get(wordAcc.size)?.end || 0;
+            : wordAcc[wordAcc.length]?.end || 0;
         const lastTokenInWord = wordPosition === tokens.size;
         const afterFeatures = tokens.get(wordPosition + 1)?.features;
         const hasNewLine = checkMatchedRules({
@@ -218,7 +219,7 @@ function convertTokensToLineArgs(
           rules: whitespaceRules,
         });
 
-        wordAcc.set(wordAcc.size + 1, {
+        wordAcc.push({
           begin,
           end: begin + duration,
           text: features.surface_form,
@@ -226,7 +227,7 @@ function convertTokensToLineArgs(
           hasWhitespace,
         });
         return wordAcc;
-      }, new Map<number, WordTimeline>());
+      }, []);
 
       lineAcc.set(lineAcc.size + 1, {
         position: linePosition,
