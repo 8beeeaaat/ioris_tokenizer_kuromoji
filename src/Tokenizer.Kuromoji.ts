@@ -225,7 +225,9 @@ function convertTokensToLineArgs(
 
         wordAcc.push({
           begin,
-          end: parseFloat((begin + duration).toFixed(3)),
+          end: lastTokenInWord
+            ? timeline.end
+            : parseFloat((begin + duration).toFixed(3)),
           text: features.surface_form,
           hasNewLine,
           hasWhitespace,
