@@ -197,8 +197,12 @@ function convertTokensToLineArgs(
           return wordAcc;
         }
 
-        const durationByChar =
-          (timeline.end - timeline.begin) / timeline.text.length;
+        const durationByChar = parseFloat(
+          (
+            (timeline.end - timeline.begin) /
+            timeline.text.replaceAll(/\s+/g, '').length
+          ).toFixed(3)
+        );
         const duration = durationByChar * features.surface_form.length;
         const begin =
           wordPosition === 1
@@ -221,7 +225,7 @@ function convertTokensToLineArgs(
 
         wordAcc.push({
           begin,
-          end: begin + duration,
+          end: parseFloat((begin + duration).toFixed(3)),
           text: features.surface_form,
           hasNewLine,
           hasWhitespace,
