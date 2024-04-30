@@ -108,6 +108,8 @@ describe('Paragraph not used Kuromoji Tokenizer', () => {
       'あの花が咲いたのは、そこに種が落ちたからで'
     );
     expect(paragraph.allLines()[0].begin).toBe(1);
+    expect(paragraph.allLines()[1].end).toBe(12);
+
     expect(paragraph.allLines()[1].text()).toBe(
       'いずれにしても立ち去らなければならない彼女は傷つきすぎた'
     );
@@ -163,6 +165,7 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
       'あの花が\n咲いたのは、\nそこに\n種が落ちたからで'
     );
     expect(paragraph.allLines()[0].begin).toBe(1);
+    expect(paragraph.allLines()[1].end).toBe(12);
     expect(paragraph.allLines()[1].text()).toBe(
       'いずれにしても\n立ち去らなければならない\n彼女は傷つきすぎた'
     );
@@ -192,6 +195,6 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
   });
 
   it('should return the voids count', () => {
-    expect(paragraph.voids().length).toBe(5);
+    expect(paragraph.voids().length).toBe(3);
   });
 });
