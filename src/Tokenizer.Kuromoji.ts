@@ -124,11 +124,11 @@ const whitespaceRules: Rule[] = [
   },
 ];
 
-export function LineArgsTokenizer(props: {
-  tokenizer: Tokenizer<IpadicFeatures>;
+export async function LineArgsTokenizer(props: {
   lineArgs: LineArgs;
-}): Map<number, LineArgs> {
-  const { tokenizer, lineArgs } = props;
+  tokenizer: Tokenizer<IpadicFeatures>;
+}): Promise<Map<number, LineArgs>> {
+  const { lineArgs, tokenizer } = props;
   const tokensByLinePosition = lineArgs.timelines.reduce<
     Map<
       number,

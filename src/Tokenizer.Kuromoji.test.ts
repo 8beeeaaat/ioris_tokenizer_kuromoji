@@ -1,5 +1,5 @@
 import { Paragraph, WordTimeline } from '@ioris/core';
-import { IpadicFeatures, Tokenizer, builder } from 'kuromoji';
+import { builder, IpadicFeatures, Tokenizer } from 'kuromoji';
 import path from 'path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LineArgsTokenizer } from './Tokenizer.Kuromoji';
@@ -96,11 +96,11 @@ describe('Paragraph not used Kuromoji Tokenizer', () => {
   let paragraph: Paragraph;
 
   beforeEach(async () => {
-    paragraph = new Paragraph({
+    paragraph = await new Paragraph({
       lyricID: '1',
       position: 1,
       timelines,
-    });
+    }).init();
   });
 
   it('should return text of the line', () => {
@@ -148,16 +148,16 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
 
   beforeEach(async () => {
     const tokenizer = await getTokenizer();
-    paragraph = new Paragraph({
+    paragraph = await new Paragraph({
       lyricID: '1',
       tokenizer: (lineArgs) =>
         LineArgsTokenizer({
-          tokenizer,
           lineArgs,
+          tokenizer,
         }),
       position: 1,
       timelines,
-    });
+    }).init();
   });
 
   it('should return text of the line', () => {
