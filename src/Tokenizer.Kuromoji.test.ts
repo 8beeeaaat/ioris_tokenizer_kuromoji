@@ -1,5 +1,5 @@
 import { Paragraph, WordTimeline } from '@ioris/core';
-import { builder, IpadicFeatures, Tokenizer } from 'kuromoji';
+import { IpadicFeatures, Tokenizer, builder } from 'kuromoji';
 import path from 'path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LineArgsTokenizer } from './Tokenizer.Kuromoji';
@@ -86,8 +86,29 @@ const timelines: WordTimeline[][] = [
   [
     {
       begin: 26,
-      end: 28,
+      end: 27,
       text: 'ふたりぼっちでも大作戦 叶えたいことが曇らないように',
+    },
+  ],
+  [
+    {
+      begin: 27,
+      end: 28,
+      text: '捨てられない古びた Teddy bear',
+    },
+  ],
+  [
+    {
+      begin: 28,
+      end: 29,
+      text: 'Baby Baby Baby Baby 君を抱きしめていたい',
+    },
+  ],
+  [
+    {
+      begin: 29,
+      end: 30,
+      text: 'I’m needing you! I’m needing you!',
     },
   ],
 ];
@@ -135,7 +156,19 @@ describe('Paragraph not used Kuromoji Tokenizer', () => {
     expect(paragraph.allLines()[9].text()).toBe(
       'ふたりぼっちでも大作戦 叶えたいことが曇らないように'
     );
-    expect(paragraph.allLines()[9].end).toBe(28);
+    expect(paragraph.allLines()[9].end).toBe(27);
+
+    expect(paragraph.allLines()[10].text()).toBe(
+      '捨てられない古びた Teddy bear'
+    );
+
+    expect(paragraph.allLines()[11].text()).toBe(
+      'Baby Baby Baby Baby 君を抱きしめていたい'
+    );
+
+    expect(paragraph.allLines()[12].text()).toBe(
+      'I’m needing you! I’m needing you!'
+    );
   });
 
   it('should return the voids count', () => {
@@ -191,7 +224,18 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
     expect(paragraph.allLines()[9].text()).toBe(
       'ふたりぼっちでも大作戦\n叶えたいことが曇らないように'
     );
-    expect(paragraph.allLines()[9].end).toBe(28);
+    expect(paragraph.allLines()[9].end).toBe(27);
+
+    expect(paragraph.allLines()[10].text()).toBe(
+      '捨てられない古びた\nTeddy bear'
+    );
+
+    expect(paragraph.allLines()[11].text()).toBe(
+      'Baby Baby Baby Baby\n君を抱きしめていたい'
+    );
+    expect(paragraph.allLines()[12].text()).toBe(
+      'I’m needing you!\nI’m needing you!'
+    );
   });
 
   it('should return the voids count', () => {

@@ -3,26 +3,68 @@ import { IpadicFeatures, Tokenizer } from 'kuromoji';
 
 type RuleInput = RegExp | [string, boolean?];
 
-type Rule = {
+const DEBUG = false;
+
+export type TokenizeRule = {
+  before?: {
+    [key in keyof IpadicFeatures]?: RuleInput[];
+  };
   current?: {
     [key in keyof IpadicFeatures]?: RuleInput[];
   };
   after?: {
     [key in keyof IpadicFeatures]?: RuleInput[];
   };
+  insert?: 'before' | 'current';
 };
 
+const regExpAlphabetOrNumber = new RegExp(/^(.*[a-zA-Z1-9'"`]).*$/);
 const regExpNotAlphabetOrNumber = new RegExp(/^(?!.*[a-zA-Z1-9'"`]).*$/);
 const regExpPeriod = new RegExp(/^(.*[.,!?]).*$/);
+const regExpWhitespace = new RegExp(/^\s+$/);
 
-const brakeRules: Rule[] = [
+export const DEFAULT_BRAKE_RULES: TokenizeRule[] = [
   {
+    before: {
+      surface_form: [regExpAlphabetOrNumber],
+    },
     current: {
-      surface_form: [regExpNotAlphabetOrNumber, regExpPeriod],
+      surface_form: [regExpWhitespace],
     },
     after: {
-      pos_detail_1: [['空白']],
+      surface_form: [regExpNotAlphabetOrNumber],
     },
+    insert: 'before',
+  },
+  {
+    before: {
+      surface_form: [regExpNotAlphabetOrNumber],
+    },
+    current: {
+      surface_form: [regExpWhitespace],
+    },
+    after: {
+      surface_form: [regExpAlphabetOrNumber],
+    },
+    insert: 'before',
+  },
+  {
+    before: {
+      surface_form: [regExpWhitespace],
+    },
+    current: {
+      surface_form: [regExpNotAlphabetOrNumber],
+    },
+    insert: 'before',
+  },
+  {
+    before: {
+      surface_form: [regExpNotAlphabetOrNumber],
+    },
+    current: {
+      surface_form: [regExpWhitespace],
+    },
+    insert: 'before',
   },
   {
     current: {
@@ -116,10 +158,10 @@ const brakeRules: Rule[] = [
   },
 ];
 
-const whitespaceRules: Rule[] = [
+export const DEFAULT_WHITESPACE_RULES: TokenizeRule[] = [
   {
     after: {
-      pos_detail_1: [['空白']],
+      surface_form: [regExpWhitespace],
     },
   },
 ];
@@ -127,6 +169,8 @@ const whitespaceRules: Rule[] = [
 export async function LineArgsTokenizer(props: {
   lineArgs: LineArgs;
   tokenizer: Tokenizer<IpadicFeatures>;
+  brakeRules?: TokenizeRule[];
+  whitespaceRules?: TokenizeRule[];
 }): Promise<Map<number, LineArgs>> {
   const { lineArgs, tokenizer } = props;
   const tokensByLinePosition = lineArgs.timelines.reduce<
@@ -179,24 +223,26 @@ export async function LineArgsTokenizer(props: {
     return acc;
   }, new Map());
 
-  return convertTokensToLineArgs(tokensByLinePosition);
+  return convertTokensToLineArgs(
+    tokensByLinePosition,
+    props.brakeRules,
+    props.whitespaceRules
+  );
 }
 
 function convertTokensToLineArgs(
   tokensByLinePosition: Map<
     number,
     Map<number, { features: IpadicFeatures; timeline: WordTimeline }>
-  >
+  >,
+  brakeRules: TokenizeRule[] = DEFAULT_BRAKE_RULES,
+  whitespaceRules: TokenizeRule[] = DEFAULT_WHITESPACE_RULES
 ): Map<number, LineArgs> {
   return Array.from(tokensByLinePosition).reduce<Map<number, LineArgs>>(
     (lineAcc, [linePosition, tokens]) => {
       const wordsMap: LineArgs['timelines'] = Array.from(tokens).reduce<
         LineArgs['timelines']
       >((wordAcc, [wordPosition, { features, timeline }]) => {
-        if (features.surface_form.match(/^\s+$/)) {
-          return wordAcc;
-        }
-
         const durationByChar = parseFloat(
           (
             (timeline.end - timeline.begin) /
@@ -209,28 +255,57 @@ function convertTokensToLineArgs(
             ? timeline.begin
             : wordAcc[wordAcc.length - 1]?.end || 0;
         const lastTokenInWord = wordPosition === tokens.size;
+        const beforeFeatures = tokens.get(wordPosition - 1)?.features;
         const afterFeatures = tokens.get(wordPosition + 1)?.features;
         const hasNewLine = checkMatchedRules({
+          beforeFeatures,
           features,
           afterFeatures,
           lastTokenInWord,
           rules: brakeRules,
         });
         const hasWhitespace = checkMatchedRules({
+          beforeFeatures,
           features,
           afterFeatures,
           lastTokenInWord,
           rules: whitespaceRules,
         });
 
+        if (DEBUG) {
+          console.table({
+            beforeFeatures,
+            features,
+            afterFeatures,
+            hasNewLine,
+            hasWhitespace,
+          });
+        }
+
+        if (
+          hasNewLine.matchedRule !== undefined &&
+          hasNewLine.matchedRule.insert === 'before'
+        ) {
+          wordAcc[wordAcc.length - 1].hasNewLine = true;
+        }
+
+        if (features.surface_form.match(/^\s+$/)) {
+          return wordAcc;
+        }
+
+        const end = lastTokenInWord
+          ? timeline.end
+          : parseFloat((begin + duration).toFixed(3));
+
         wordAcc.push({
           begin,
-          end: lastTokenInWord
-            ? timeline.end
-            : parseFloat((begin + duration).toFixed(3)),
+          end,
           text: features.surface_form,
-          hasNewLine,
-          hasWhitespace,
+          hasNewLine:
+            hasNewLine.matchedRule !== undefined &&
+            (hasNewLine.matchedRule.insert === undefined ||
+              hasNewLine.matchedRule.insert === 'current'),
+          hasWhitespace: hasWhitespace.matchedRule !== undefined,
         });
         return wordAcc;
       }, []);
@@ -259,16 +334,45 @@ function isMatchRule(
 }
 
 function checkMatchedRules(props: {
-  rules: Rule[];
+  rules: TokenizeRule[];
+  beforeFeatures: IpadicFeatures | undefined;
   features: IpadicFeatures;
   afterFeatures: IpadicFeatures | undefined;
   lastTokenInWord: boolean;
-}): boolean {
+}): {
+  matchedRule: TokenizeRule | undefined;
+  before: boolean;
+  current: boolean;
+  after: boolean;
+} {
+  const ret: {
+    matchedRule: TokenizeRule | undefined;
+    before: boolean;
+    current: boolean;
+    after: boolean;
+  } = {
+    matchedRule: undefined,
+    before: false,
+    current: false,
+    after: false,
+  };
   if (props.lastTokenInWord) {
-    return false;
+    return ret;
   }
 
-  return props.rules.some((rule) => {
+  props.rules.some((rule) => {
+    const beforeMatch = Object.keys(rule.before || {}).every((key) => {
+      return rule.before
+        ? rule.before[key as keyof IpadicFeatures]?.some((input) => {
+            const featureKey = key as keyof IpadicFeatures;
+            if (!props.beforeFeatures || !props.beforeFeatures[featureKey]) {
+              return false;
+            }
+            return isMatchRule(input, props.beforeFeatures[featureKey]);
+          }) === true
+        : false;
+    });
+
     const currentMatch = Object.keys(rule.current || {}).every((key) => {
       return rule.current
         ? rule.current[key as keyof IpadicFeatures]?.some((input) => {
@@ -292,8 +396,21 @@ function checkMatchedRules(props: {
           }) === true
         : false;
     });
-    return currentMatch && afterMatch;
+
+    ret.before = beforeMatch;
+    ret.current = currentMatch;
+    ret.after = afterMatch;
+
+    if (beforeMatch && currentMatch && afterMatch) {
+      ret.matchedRule = rule;
+      ret.before = true;
+      ret.current = true;
+      ret.after = true;
+      return true;
+    }
   });
+
+  return ret;
 }
 
 export default LineArgsTokenizer;
