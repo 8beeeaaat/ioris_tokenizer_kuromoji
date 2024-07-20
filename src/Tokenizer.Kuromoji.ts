@@ -1,4 +1,4 @@
-import { LineArgs, WordTimeline } from '@ioris/core';
+import { LineCreateArgs, WordTimeline } from '@ioris/core';
 import { IpadicFeatures, Tokenizer } from 'kuromoji';
 
 type RuleInput = RegExp | [string, boolean?];
@@ -167,11 +167,11 @@ export const DEFAULT_WHITESPACE_RULES: TokenizeRule[] = [
 ];
 
 export async function LineArgsTokenizer(props: {
-  lineArgs: LineArgs;
+  lineArgs: LineCreateArgs;
   tokenizer: Tokenizer<IpadicFeatures>;
   brakeRules?: TokenizeRule[];
   whitespaceRules?: TokenizeRule[];
-}): Promise<Map<number, LineArgs>> {
+}): Promise<Map<number, LineCreateArgs>> {
   const { lineArgs, tokenizer } = props;
   const tokensByLinePosition = lineArgs.timelines.reduce<
     Map<
@@ -237,11 +237,11 @@ function convertTokensToLineArgs(
   >,
   brakeRules: TokenizeRule[] = DEFAULT_BRAKE_RULES,
   whitespaceRules: TokenizeRule[] = DEFAULT_WHITESPACE_RULES
-): Map<number, LineArgs> {
-  return Array.from(tokensByLinePosition).reduce<Map<number, LineArgs>>(
+): Map<number, LineCreateArgs> {
+  return Array.from(tokensByLinePosition).reduce<Map<number, LineCreateArgs>>(
     (lineAcc, [linePosition, tokens]) => {
-      const wordsMap: LineArgs['timelines'] = Array.from(tokens).reduce<
-        LineArgs['timelines']
+      const wordsMap: LineCreateArgs['timelines'] = Array.from(tokens).reduce<
+        LineCreateArgs['timelines']
       >((wordAcc, [wordPosition, { features, timeline }]) => {
         const durationByChar = parseFloat(
           (
@@ -273,6 +273,7 @@ function convertTokensToLineArgs(
         });
 
         if (DEBUG) {
+          // eslint-disable-next-line no-console
           console.table({
             beforeFeatures,
             features,
@@ -316,7 +317,7 @@ function convertTokensToLineArgs(
       });
       return lineAcc;
     },
-    new Map<number, LineArgs>()
+    new Map<number, LineCreateArgs>()
   );
 }
 
@@ -364,36 +365,36 @@ function checkMatchedRules(props: {
     const beforeMatch = Object.keys(rule.before || {}).every((key) => {
       return rule.before
         ? rule.before[key as keyof IpadicFeatures]?.some((input) => {
-            const featureKey = key as keyof IpadicFeatures;
-            if (!props.beforeFeatures || !props.beforeFeatures[featureKey]) {
-              return false;
-            }
-            return isMatchRule(input, props.beforeFeatures[featureKey]);
-          }) === true
+          const featureKey = key as keyof IpadicFeatures;
+          if (!props.beforeFeatures || !props.beforeFeatures[featureKey]) {
+            return false;
+          }
+          return isMatchRule(input, props.beforeFeatures[featureKey]);
+        }) === true
         : false;
     });
 
     const currentMatch = Object.keys(rule.current || {}).every((key) => {
       return rule.current
         ? rule.current[key as keyof IpadicFeatures]?.some((input) => {
-            const featureKey = key as keyof IpadicFeatures;
-            if (!props.features[featureKey]) {
-              return false;
-            }
-            return isMatchRule(input, props.features[featureKey]);
-          }) === true
+          const featureKey = key as keyof IpadicFeatures;
+          if (!props.features[featureKey]) {
+            return false;
+          }
+          return isMatchRule(input, props.features[featureKey]);
+        }) === true
         : false;
     });
 
     const afterMatch = Object.keys(rule.after || {}).every((key) => {
       return rule.after
         ? rule.after[key as keyof IpadicFeatures]?.some((input) => {
-            const featureKey = key as keyof IpadicFeatures;
-            if (!props.afterFeatures || !props.afterFeatures[featureKey]) {
-              return false;
-            }
-            return isMatchRule(input, props.afterFeatures[featureKey]);
-          }) === true
+          const featureKey = key as keyof IpadicFeatures;
+          if (!props.afterFeatures || !props.afterFeatures[featureKey]) {
+            return false;
+          }
+          return isMatchRule(input, props.afterFeatures[featureKey]);
+        }) === true
         : false;
     });
 

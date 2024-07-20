@@ -73,7 +73,7 @@ const timelines: WordTimeline[][] = [
     {
       begin: 22,
       end: 25,
-      text: "Oh, I can't help falling in love with you",
+      text: 'Oh, I can\'t help falling in love with you',
     },
   ],
   [
@@ -128,8 +128,8 @@ describe('Paragraph not used Kuromoji Tokenizer', () => {
     expect(paragraph.allLines()[0].text()).toBe(
       'あの花が咲いたのは、そこに種が落ちたからで'
     );
-    expect(paragraph.allLines()[0].begin).toBe(1);
-    expect(paragraph.allLines()[1].end).toBe(12);
+    expect(paragraph.allLines()[0].begin()).toBe(1);
+    expect(paragraph.allLines()[1].end()).toBe(12);
 
     expect(paragraph.allLines()[1].text()).toBe(
       'いずれにしても立ち去らなければならない彼女は傷つきすぎた'
@@ -150,13 +150,13 @@ describe('Paragraph not used Kuromoji Tokenizer', () => {
       '行きたい場所なんて何処にもないここに居させてと泣き喚いた'
     );
     expect(paragraph.allLines()[7].text()).toBe(
-      "Oh, I can't help falling in love with you"
+      'Oh, I can\'t help falling in love with you'
     );
     expect(paragraph.allLines()[8].text()).toBe('変な感じ 全然慣れないや');
     expect(paragraph.allLines()[9].text()).toBe(
       'ふたりぼっちでも大作戦 叶えたいことが曇らないように'
     );
-    expect(paragraph.allLines()[9].end).toBe(27);
+    expect(paragraph.allLines()[9].end()).toBe(27);
 
     expect(paragraph.allLines()[10].text()).toBe(
       '捨てられない古びた Teddy bear'
@@ -197,8 +197,8 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
     expect(paragraph.allLines()[0].text()).toBe(
       'あの花が\n咲いたのは、\nそこに\n種が落ちたからで'
     );
-    expect(paragraph.allLines()[0].begin).toBe(1);
-    expect(paragraph.allLines()[1].end).toBe(12);
+    expect(paragraph.allLines()[0].begin()).toBe(1);
+    expect(paragraph.allLines()[1].end()).toBe(12);
     expect(paragraph.allLines()[1].text()).toBe(
       'いずれにしても\n立ち去らなければならない\n彼女は傷つきすぎた'
     );
@@ -218,13 +218,13 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
       '行きたい\n場所なんて\n何処にもない\nここに居させてと泣き喚いた'
     );
     expect(paragraph.allLines()[7].text()).toBe(
-      "Oh,\nI can't help falling in love with you"
+      'Oh,\nI can\'t help falling in love with you'
     );
     expect(paragraph.allLines()[8].text()).toBe('変な感じ\n全然慣れないや');
     expect(paragraph.allLines()[9].text()).toBe(
       'ふたりぼっちでも大作戦\n叶えたいことが曇らないように'
     );
-    expect(paragraph.allLines()[9].end).toBe(27);
+    expect(paragraph.allLines()[9].end()).toBe(27);
 
     expect(paragraph.allLines()[10].text()).toBe(
       '捨てられない古びた\nTeddy bear'
