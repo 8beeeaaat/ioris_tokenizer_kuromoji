@@ -21,6 +21,7 @@ const getTokenizer = (): Promise<Tokenizer<IpadicFeatures>> =>
 const timelines: WordTimeline[][] = [
   [
     {
+      wordID: '',
       begin: 1,
       end: 5,
       text: 'あの花が咲いたのは、そこに種が落ちたからで',
@@ -29,6 +30,7 @@ const timelines: WordTimeline[][] = [
 
   [
     {
+      wordID: '',
       begin: 6,
       end: 12,
       text: 'いずれにしても立ち去らなければならない彼女は傷つきすぎた',
@@ -36,6 +38,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 14,
       end: 15,
       text: '開かないカーテン 割れたカップ流し台の腐乱したキャベツ',
@@ -43,6 +46,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 15,
       end: 16,
       text: '私だけが知っているんだからわがままはとうの昔に止めた',
@@ -50,6 +54,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 16,
       end: 17,
       text: '昔嬉しそうに話していた母は今夜もまだ帰らない',
@@ -57,6 +62,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 21,
       end: 21.5,
       text: '自虐家のアリー波の随に 歌って',
@@ -64,6 +70,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 21.5,
       end: 22,
       text: '行きたい場所なんて何処にもないここに居させてと泣き喚いた',
@@ -71,6 +78,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 22,
       end: 25,
       text: 'Oh, I can\'t help falling in love with you',
@@ -78,6 +86,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 25,
       end: 26,
       text: '変な感じ 全然慣れないや',
@@ -85,6 +94,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 26,
       end: 27,
       text: 'ふたりぼっちでも大作戦 叶えたいことが曇らないように',
@@ -92,6 +102,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 27,
       end: 28,
       text: '捨てられない古びた Teddy bear',
@@ -99,6 +110,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 28,
       end: 29,
       text: 'Baby Baby Baby Baby 君を抱きしめていたい',
@@ -106,6 +118,7 @@ const timelines: WordTimeline[][] = [
   ],
   [
     {
+      wordID: '',
       begin: 29,
       end: 30,
       text: 'I’m needing you! I’m needing you!',
