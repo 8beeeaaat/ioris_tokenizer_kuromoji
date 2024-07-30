@@ -124,6 +124,14 @@ const timelines: WordTimeline[][] = [
       text: 'I’m needing you! I’m needing you!',
     },
   ],
+  [
+    {
+      wordID: '',
+      begin: 31,
+      end: 36,
+      text: '君にすすめるよ赤猫',
+    },
+  ],
 ];
 
 describe('Paragraph not used Kuromoji Tokenizer', () => {
@@ -182,10 +190,12 @@ describe('Paragraph not used Kuromoji Tokenizer', () => {
     expect(paragraph.allLines()[12].text()).toBe(
       'I’m needing you! I’m needing you!'
     );
+
+    expect(paragraph.allLines()[13].text()).toBe('君にすすめるよ赤猫');
   });
 
   it('should return the voids count', () => {
-    expect(paragraph.voids().length).toBe(3);
+    expect(paragraph.voids().length).toBe(4);
   });
 });
 
@@ -227,6 +237,75 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
     expect(paragraph.allLines()[5].text()).toBe(
       '自虐家の\nアリー\n波の\n随に\n歌って'
     );
+    expect(
+      Array.from(
+        paragraph.allLines()[5].wordGridPositionByWordID().values()
+      ).reduce<
+        Array<{
+          column: number;
+          row: number;
+          text: string;
+        }>
+      >((sum, p) => {
+        sum.push({
+          column: p.column,
+          row: p.row,
+          text: p.word.text(),
+        });
+        return sum;
+      }, [])
+    ).toStrictEqual([
+      {
+        column: 1,
+        row: 1,
+        text: '自虐',
+      },
+      {
+        column: 2,
+        row: 1,
+        text: '家',
+      },
+      {
+        column: 3,
+        row: 1,
+        text: 'の',
+      },
+      {
+        column: 1,
+        row: 2,
+        text: 'アリー',
+      },
+      {
+        column: 1,
+        row: 3,
+        text: '波',
+      },
+      {
+        column: 2,
+        row: 3,
+        text: 'の',
+      },
+      {
+        column: 1,
+        row: 4,
+        text: '随',
+      },
+      {
+        column: 2,
+        row: 4,
+        text: 'に',
+      },
+      {
+        column: 1,
+        row: 5,
+        text: '歌っ',
+      },
+      {
+        column: 2,
+        row: 5,
+        text: 'て',
+      },
+    ]);
     expect(paragraph.allLines()[6].text()).toBe(
       '行きたい\n場所なんて\n何処にもない\nここに居させてと泣き喚いた'
     );
@@ -249,9 +328,11 @@ describe('Paragraph used Kuromoji Tokenizer', () => {
     expect(paragraph.allLines()[12].text()).toBe(
       'I’m needing you!\nI’m needing you!'
     );
+
+    expect(paragraph.allLines()[13].text()).toBe('君にすすめるよ\n赤猫');
   });
 
   it('should return the voids count', () => {
-    expect(paragraph.voids().length).toBe(3);
+    expect(paragraph.voids().length).toBe(4);
   });
 });
