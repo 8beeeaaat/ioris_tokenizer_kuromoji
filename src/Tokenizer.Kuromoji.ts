@@ -15,6 +15,9 @@ export type TokenizeRule = {
   after?: {
     [key in keyof IpadicFeatures]?: RuleInput[];
   };
+  nextIsLastTokenInWord?: {
+    lengthIsShorterThan?: number;
+  };
   insert?: 'before' | 'current';
 };
 
@@ -85,6 +88,9 @@ export const DEFAULT_BRAKE_RULES: TokenizeRule[] = [
       pos: [['名詞']],
       pos_detail_1: [['一般'], ['接尾']],
     },
+    nextIsLastTokenInWord: {
+      lengthIsShorterThan: 4,
+    },
   },
   {
     current: {
@@ -100,7 +106,7 @@ export const DEFAULT_BRAKE_RULES: TokenizeRule[] = [
   {
     current: {
       pos: [['助詞']],
-      pos_detail_1: [['格助詞'], ['接続助詞']],
+      pos_detail_1: [['格助詞'], ['接続助詞'], ['終助詞']],
     },
     after: {
       pos: [['名詞']],
@@ -254,21 +260,26 @@ function convertTokensToLineArgs(
           wordPosition === 1
             ? timeline.begin
             : wordAcc[wordAcc.length - 1]?.end || 0;
-        const lastTokenInWord = wordPosition === tokens.size;
         const beforeFeatures = tokens.get(wordPosition - 1)?.features;
-        const afterFeatures = tokens.get(wordPosition + 1)?.features;
+        const nextFeatures = tokens.get(wordPosition + 1)?.features;
+
+        const lastTokenInWord = wordPosition === tokens.size;
+        const nextIsLastTokenInWord =
+          tokens.get(wordPosition + 2)?.features === undefined;
         const hasNewLine = checkMatchedRules({
           beforeFeatures,
           features,
-          afterFeatures,
+          nextFeatures,
           lastTokenInWord,
+          nextIsLastTokenInWord,
           rules: brakeRules,
         });
         const hasWhitespace = checkMatchedRules({
           beforeFeatures,
           features,
-          afterFeatures,
+          nextFeatures,
           lastTokenInWord,
+          nextIsLastTokenInWord,
           rules: whitespaceRules,
         });
 
@@ -277,7 +288,7 @@ function convertTokensToLineArgs(
           console.table({
             beforeFeatures,
             features,
-            afterFeatures,
+            nextFeatures,
             hasNewLine,
             hasWhitespace,
           });
@@ -338,8 +349,9 @@ function checkMatchedRules(props: {
   rules: TokenizeRule[];
   beforeFeatures: IpadicFeatures | undefined;
   features: IpadicFeatures;
-  afterFeatures: IpadicFeatures | undefined;
+  nextFeatures: IpadicFeatures | undefined;
   lastTokenInWord: boolean;
+  nextIsLastTokenInWord: boolean;
 }): {
   matchedRule: TokenizeRule | undefined;
   before: boolean;
@@ -365,36 +377,50 @@ function checkMatchedRules(props: {
     const beforeMatch = Object.keys(rule.before || {}).every((key) => {
       return rule.before
         ? rule.before[key as keyof IpadicFeatures]?.some((input) => {
-          const featureKey = key as keyof IpadicFeatures;
-          if (!props.beforeFeatures || !props.beforeFeatures[featureKey]) {
-            return false;
-          }
-          return isMatchRule(input, props.beforeFeatures[featureKey]);
-        }) === true
+            const featureKey = key as keyof IpadicFeatures;
+            if (!props.beforeFeatures || !props.beforeFeatures[featureKey]) {
+              return false;
+            }
+            return isMatchRule(input, props.beforeFeatures[featureKey]);
+          }) === true
         : false;
     });
 
     const currentMatch = Object.keys(rule.current || {}).every((key) => {
       return rule.current
         ? rule.current[key as keyof IpadicFeatures]?.some((input) => {
-          const featureKey = key as keyof IpadicFeatures;
-          if (!props.features[featureKey]) {
-            return false;
-          }
-          return isMatchRule(input, props.features[featureKey]);
-        }) === true
+            const featureKey = key as keyof IpadicFeatures;
+            if (!props.features[featureKey]) {
+              return false;
+            }
+            return isMatchRule(input, props.features[featureKey]);
+          }) === true
         : false;
     });
+
+    const lengthIsShorterThan =
+      props.nextIsLastTokenInWord &&
+      rule.nextIsLastTokenInWord?.lengthIsShorterThan
+        ? rule.nextIsLastTokenInWord?.lengthIsShorterThan
+        : 0;
+
+    if (
+      (props.nextFeatures?.basic_form &&
+        lengthIsShorterThan > props.nextFeatures.basic_form.length) ||
+      0
+    ) {
+      return false;
+    }
 
     const afterMatch = Object.keys(rule.after || {}).every((key) => {
       return rule.after
         ? rule.after[key as keyof IpadicFeatures]?.some((input) => {
-          const featureKey = key as keyof IpadicFeatures;
-          if (!props.afterFeatures || !props.afterFeatures[featureKey]) {
-            return false;
-          }
-          return isMatchRule(input, props.afterFeatures[featureKey]);
-        }) === true
+            const featureKey = key as keyof IpadicFeatures;
+            if (!props.nextFeatures || !props.nextFeatures[featureKey]) {
+              return false;
+            }
+            return isMatchRule(input, props.nextFeatures[featureKey]);
+          }) === true
         : false;
     });
 
