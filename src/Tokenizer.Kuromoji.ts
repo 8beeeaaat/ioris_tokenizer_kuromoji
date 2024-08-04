@@ -1,9 +1,9 @@
 import { LineCreateArgs, WordTimeline } from '@ioris/core';
 import { IpadicFeatures, Tokenizer } from 'kuromoji';
 
-type RuleInput = RegExp | [string, boolean?];
+type RuleInput = RegExp | [...string[], boolean];
 
-const DEBUG = false;
+const DEBUG = process.env.NODE_ENV !== 'production'; // or false, depending on your needs
 
 export type TokenizeRule = {
   before?: {
@@ -15,8 +15,23 @@ export type TokenizeRule = {
   after?: {
     [key in keyof IpadicFeatures]?: RuleInput[];
   };
-  nextIsLastTokenInWord?: {
-    lengthIsShorterThan?: number;
+  length?: {
+    current?: {
+      largerThan?: number;
+      shorterThan?: number;
+      nextIsLastTokenInWord?: boolean;
+    };
+    after?: {
+      largerThan?: number;
+      shorterThan?: number;
+      nextIsLastTokenInWord?: boolean;
+    };
+    remaining?: {
+      largerThan?: number;
+      shorterThan?: number;
+      nextIsLastTokenInWord?: boolean;
+      forLastToken?: boolean;
+    };
   };
   insert?: 'before' | 'current';
 };
@@ -37,6 +52,11 @@ export const DEFAULT_BRAKE_RULES: TokenizeRule[] = [
     after: {
       surface_form: [regExpNotAlphabetOrNumber],
     },
+    length: {
+      remaining: {
+        largerThan: 5,
+      },
+    },
     insert: 'before',
   },
   {
@@ -49,14 +69,10 @@ export const DEFAULT_BRAKE_RULES: TokenizeRule[] = [
     after: {
       surface_form: [regExpAlphabetOrNumber],
     },
-    insert: 'before',
-  },
-  {
-    before: {
-      surface_form: [regExpWhitespace],
-    },
-    current: {
-      surface_form: [regExpNotAlphabetOrNumber],
+    length: {
+      remaining: {
+        largerThan: 5,
+      },
     },
     insert: 'before',
   },
@@ -66,6 +82,23 @@ export const DEFAULT_BRAKE_RULES: TokenizeRule[] = [
     },
     current: {
       surface_form: [regExpWhitespace],
+    },
+    length: {
+      remaining: {
+        largerThan: 8,
+      },
+    },
+    insert: 'before',
+  },
+  {
+    before: {
+      surface_form: [regExpNotAlphabetOrNumber],
+    },
+    current: {
+      surface_form: [regExpWhitespace],
+    },
+    after: {
+      surface_form: [regExpNotAlphabetOrNumber],
     },
     insert: 'before',
   },
@@ -73,93 +106,414 @@ export const DEFAULT_BRAKE_RULES: TokenizeRule[] = [
     current: {
       surface_form: [regExpPeriod],
     },
-  },
-  {
-    current: {
-      pos_detail_1: [['読点']],
+    length: {
+      remaining: {
+        largerThan: 8,
+        forLastToken: true,
+      },
     },
   },
   {
     current: {
-      pos: [['名詞']],
-      pos_detail_1: [['一般']],
+      pos_detail_1: [['読点', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['固有名詞', false]],
+    },
+    current: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['一般', false]],
     },
     after: {
-      pos: [['名詞']],
-      pos_detail_1: [['一般'], ['接尾']],
+      pos: [['名詞', false]],
+      pos_detail_1: [['固有名詞', false]],
     },
-    nextIsLastTokenInWord: {
-      lengthIsShorterThan: 4,
+  },
+  {
+    before: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['接尾', true]],
+    },
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['サ変接続', true]],
+    },
+  },
+  {
+    before: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['接尾', false]],
+    },
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
     },
   },
   {
     current: {
-      pos: [['助詞']],
-      pos_detail_1: [['格助詞']],
+      pos: [['名詞', false]],
+      pos_detail_1: [['形容動詞語幹', false]],
     },
     after: {
-      pos: [['動詞']],
-      pos_detail_1: [['自立']],
-      conjugated_form: [['連用タ接続']],
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['一般', '固有名詞', '数', false]],
+    },
+    current: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['接尾', false]],
+      pos_detail_2: [['助数詞', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['接尾', false]],
+      pos_detail_2: [['一般', true]],
+    },
+  },
+  {
+    before: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['一般', '固有名詞', false]],
+    },
+    current: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['接尾', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['一般', '固有名詞', false]],
+    },
+    length: {
+      remaining: {
+        nextIsLastTokenInWord: true,
+      },
+    },
+  },
+  {
+    before: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['連体化', false]],
+    },
+    current: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['一般', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['接尾', false]],
+    },
+    length: {
+      remaining: {
+        largerThan: 4,
+      },
+    },
+  },
+  {
+    before: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', false]],
+    },
+    current: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+    length: {
+      remaining: {
+        nextIsLastTokenInWord: true,
+        largerThan: 4,
+      },
     },
   },
   {
     current: {
-      pos: [['助詞']],
-      pos_detail_1: [['格助詞'], ['接続助詞'], ['終助詞']],
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', false]],
     },
     after: {
-      pos: [['名詞']],
-      pos_detail_1: [['一般']],
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+      conjugated_form: [['連用タ接続', false]],
+    },
+    length: {
+      remaining: {
+        largerThan: 4,
+      },
     },
   },
   {
     current: {
-      pos: [['助詞']],
-      pos_detail_1: [['連体化'], ['副助詞']],
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', false]],
+      pos_detail_2: [['引用', false]],
     },
     after: {
-      pos: [['名詞']],
+      pos: [['動詞', false], ['助詞', false]],
+      pos_detail_1: [['係助詞', true]],
     },
   },
   {
     current: {
-      pos: [['助詞']],
-      pos_detail_1: [['係助詞']],
+      pos: [['助詞', false]],
+      pos_detail_1: [['接続助詞', '終助詞', false]],
     },
     after: {
-      pos: [['動詞']],
-      pos_detail_1: [['自立']],
+      pos: [['名詞', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['連体化', false]],
+    },
+    current: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['一般', false]],
+    },
+    after: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['接尾', true]],
+    },
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['連体化', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['サ変接続', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['名詞', false]],
+    },
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['副助詞', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['名詞', false]],
+    },
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['副助詞', false]],
+    },
+    after: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
       conjugated_form: [['連用形', true]],
     },
   },
   {
     current: {
-      pos: [['助詞']],
-      pos_detail_1: [['係助詞']],
+      pos: [['名詞', false]],
+      pos_detail_1: [['非自立', false]],
+      pos_detail_2: [['副詞可能', false]],
     },
     after: {
-      pos: [['副詞']],
+      pos: [['副詞', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['副詞', false]],
+    },
+    current: {
+      pos: [['名詞', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+    },
+  },
+
+  {
+    before: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', true]],
+    },
+    current: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+      conjugated_type: [['五段・タ行', true]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['非自立', true]],
+    },
+    length: {
+      after: {
+        nextIsLastTokenInWord: false,
+      },
+    },
+  },
+  {
+    before: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', false]],
+    },
+    current: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['非自立', '副詞可能', true]],
     },
   },
   {
     current: {
-      pos: [['助動詞']],
+      pos: [['助詞', false]],
+      pos_detail_1: [['係助詞', false]],
+    },
+    after: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+      conjugated_form: [['連用形', '未然ウ接続', true]],
+    },
+  },
+  {
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['係助詞', false]],
+    },
+    after: {
+      pos: [['名詞', '副詞', false]],
+    },
+    length: {
+      after: {
+        nextIsLastTokenInWord: false,
+      },
+    },
+  },
+
+  {
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', false]],
+    },
+    after: {
+      pos: [['連体詞', false]],
+    },
+  },
+
+
+  {
+    before: {
+      pos: [['助動詞', false]],
+    },
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['格助詞', false]],
+    },
+    after: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['助動詞', false]],
+    },
+    current: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['一般', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['一般', false]],
+    },
+    length: {
+      after: {
+        nextIsLastTokenInWord: false,
+      },
+    },
+  },
+  {
+    current: {
+      pos: [['助動詞', false]],
       conjugated_form: [['体言接続', true]],
     },
     after: {
-      pos: [['名詞']],
-      pos_detail_1: [['非自立', true]],
+      pos: [['名詞', false]],
+      pos_detail_1: [['非自立', '副詞可能', true]],
     },
   },
   {
     current: {
-      pos: [['形容詞']],
-      pos_detail_1: [['自立']],
+      pos: [['助動詞', false]],
+      conjugated_form: [['仮定形', false]],
     },
     after: {
-      pos: [['名詞']],
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+    current: {
+      pos: [['助詞', false]],
+      pos_detail_1: [['接続助詞', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['形容動詞語幹', false]],
+    },
+  },
+  {
+    before: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+    current: {
+      pos: [['名詞', false]],
+      pos_detail_1: [['非自立', false]],
+    },
+    after: {
+      pos: [['動詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+  },
+  {
+    current: {
+      pos: [['形容詞', false]],
+      pos_detail_1: [['自立', false]],
+    },
+    after: {
+      pos: [['名詞', false]],
       pos_detail_1: [['接尾', true]],
+    },
+    length: {
+      remaining: {
+        largerThan: 10,
+      },
     },
   },
 ];
@@ -246,7 +600,10 @@ function convertTokensToLineArgs(
 ): Map<number, LineCreateArgs> {
   return Array.from(tokensByLinePosition).reduce<Map<number, LineCreateArgs>>(
     (lineAcc, [linePosition, tokens]) => {
-      const wordsMap: LineCreateArgs['timelines'] = Array.from(tokens).reduce<
+      const lineTokens = Array.from(tokens);
+      const last = lineTokens.at(-1)?.[1];
+      const lastToken = last ? last.features : undefined;
+      const wordsMap: LineCreateArgs['timelines'] = lineTokens.reduce<
         LineCreateArgs['timelines']
       >((wordAcc, [wordPosition, { features, timeline }]) => {
         const durationByChar = parseFloat(
@@ -266,6 +623,34 @@ function convertTokensToLineArgs(
         const lastTokenInWord = wordPosition === tokens.size;
         const nextIsLastTokenInWord =
           tokens.get(wordPosition + 2)?.features === undefined;
+
+        const remainSpaceIndexes = timeline.text
+          .split('')
+          .reduce<number[]>((acc, char, index) => {
+            if (char === ' ') {
+              acc.push(index);
+            }
+            return acc;
+          }, []);
+
+        const nextSpaceIndex = remainSpaceIndexes.find(
+          (index) => index > features.word_position
+        );
+
+        const remainLengthBetweenNextSpace = nextSpaceIndex
+          ? nextSpaceIndex +
+          1 -
+          features.word_position -
+          features.surface_form.length
+          : 0;
+
+        const remainTextLengthForLineEnd = lastToken
+          ? lastToken.word_position +
+          lastToken.surface_form.length -
+          features.word_position -
+          features.surface_form.length
+          : 0;
+
         const hasNewLine = checkMatchedRules({
           beforeFeatures,
           features,
@@ -273,6 +658,8 @@ function convertTokensToLineArgs(
           lastTokenInWord,
           nextIsLastTokenInWord,
           rules: brakeRules,
+          remainLengthBetweenNextSpace,
+          remainTextLengthForLineEnd,
         });
         const hasWhitespace = checkMatchedRules({
           beforeFeatures,
@@ -281,6 +668,8 @@ function convertTokensToLineArgs(
           lastTokenInWord,
           nextIsLastTokenInWord,
           rules: whitespaceRules,
+          remainLengthBetweenNextSpace,
+          remainTextLengthForLineEnd,
         });
 
         if (DEBUG) {
@@ -289,14 +678,20 @@ function convertTokensToLineArgs(
             beforeFeatures,
             features,
             nextFeatures,
-            hasNewLine,
-            hasWhitespace,
+            remainLengthBetweenNextSpace,
+            remainTextLengthForLineEnd,
+            nextIsLastTokenInWord,
+            // hasNewLine,
+            // hasWhitespace,
           });
+          console.dir(hasNewLine, { depth: null });
         }
 
+        const hasNewLineMatchedRule = hasNewLine.matchedRule !== undefined;
+
         if (
-          hasNewLine.matchedRule !== undefined &&
-          hasNewLine.matchedRule.insert === 'before'
+          hasNewLineMatchedRule &&
+          hasNewLine.matchedRule?.insert === 'before'
         ) {
           wordAcc[wordAcc.length - 1].hasNewLine = true;
         }
@@ -314,9 +709,9 @@ function convertTokensToLineArgs(
           end,
           text: features.surface_form,
           hasNewLine:
-            hasNewLine.matchedRule !== undefined &&
-            (hasNewLine.matchedRule.insert === undefined ||
-              hasNewLine.matchedRule.insert === 'current'),
+            hasNewLineMatchedRule &&
+            (hasNewLine.matchedRule?.insert === undefined ||
+              hasNewLine.matchedRule?.insert === 'current'),
           hasWhitespace: hasWhitespace.matchedRule !== undefined,
         });
         return wordAcc;
@@ -340,7 +735,10 @@ function isMatchRule(
     return false;
   }
   if (Array.isArray(input)) {
-    return input[1] ? input[0] !== value : input[0] === value;
+    const values = input.slice(0, -1);
+    return input.at(-1)
+      ? values.every((v) => v !== value)
+      : values.some((v) => v === value);
   }
   return input.test(value);
 }
@@ -352,22 +750,27 @@ function checkMatchedRules(props: {
   nextFeatures: IpadicFeatures | undefined;
   lastTokenInWord: boolean;
   nextIsLastTokenInWord: boolean;
+  remainLengthBetweenNextSpace: number;
+  remainTextLengthForLineEnd: number;
 }): {
   matchedRule: TokenizeRule | undefined;
   before: boolean;
   current: boolean;
   after: boolean;
+  common: boolean;
 } {
   const ret: {
     matchedRule: TokenizeRule | undefined;
     before: boolean;
     current: boolean;
     after: boolean;
+    common: boolean;
   } = {
     matchedRule: undefined,
     before: false,
     current: false,
     after: false,
+    common: false,
   };
   if (props.lastTokenInWord) {
     return ret;
@@ -377,50 +780,89 @@ function checkMatchedRules(props: {
     const beforeMatch = Object.keys(rule.before || {}).every((key) => {
       return rule.before
         ? rule.before[key as keyof IpadicFeatures]?.some((input) => {
-            const featureKey = key as keyof IpadicFeatures;
-            if (!props.beforeFeatures || !props.beforeFeatures[featureKey]) {
-              return false;
-            }
-            return isMatchRule(input, props.beforeFeatures[featureKey]);
-          }) === true
+          const featureKey = key as keyof IpadicFeatures;
+          if (!props.beforeFeatures || !props.beforeFeatures[featureKey]) {
+            return false;
+          }
+          return isMatchRule(input, props.beforeFeatures[featureKey]);
+        }) === true
         : false;
     });
 
     const currentMatch = Object.keys(rule.current || {}).every((key) => {
-      return rule.current
-        ? rule.current[key as keyof IpadicFeatures]?.some((input) => {
-            const featureKey = key as keyof IpadicFeatures;
-            if (!props.features[featureKey]) {
-              return false;
-            }
-            return isMatchRule(input, props.features[featureKey]);
-          }) === true
+      const { current, length } = rule;
+      const nextIsLastTokenInWord =
+        length && length.remaining
+          ? length.remaining.nextIsLastTokenInWord === undefined
+            ? true
+            : props.nextIsLastTokenInWord ===
+            length.remaining.nextIsLastTokenInWord
+          : true;
+
+      const remainLengthPassed = length?.remaining
+        ? length.remaining.largerThan
+          ? (length.remaining.forLastToken ||
+            props.remainLengthBetweenNextSpace === 0
+            ? props.remainTextLengthForLineEnd
+            : props.remainLengthBetweenNextSpace) >=
+          length.remaining.largerThan
+          : length.remaining.shorterThan
+            ? (length.remaining.forLastToken ||
+              props.remainLengthBetweenNextSpace === 0
+              ? props.remainTextLengthForLineEnd
+              : props.remainLengthBetweenNextSpace) <=
+            length.remaining.shorterThan
+            : true
+        : true;
+
+      const lengthPassed = length?.current
+        ? length.current.largerThan
+          ? props.features.surface_form.length >= length.current.largerThan
+          : length.current.shorterThan
+            ? props.features.surface_form.length <= length.current.shorterThan
+            : true
+        : true;
+
+      return current
+        ? current[key as keyof IpadicFeatures]?.some((input) => {
+          const featureKey = key as keyof IpadicFeatures;
+          if (!props.features[featureKey]) {
+            return false;
+          }
+          return isMatchRule(input, props.features[featureKey]);
+        }) === true &&
+        nextIsLastTokenInWord &&
+        remainLengthPassed &&
+        lengthPassed
         : false;
     });
 
-    const lengthIsShorterThan =
-      props.nextIsLastTokenInWord &&
-      rule.nextIsLastTokenInWord?.lengthIsShorterThan
-        ? rule.nextIsLastTokenInWord?.lengthIsShorterThan
-        : 0;
-
-    if (
-      (props.nextFeatures?.basic_form &&
-        lengthIsShorterThan > props.nextFeatures.basic_form.length) ||
-      0
-    ) {
-      return false;
-    }
-
     const afterMatch = Object.keys(rule.after || {}).every((key) => {
-      return rule.after
-        ? rule.after[key as keyof IpadicFeatures]?.some((input) => {
-            const featureKey = key as keyof IpadicFeatures;
-            if (!props.nextFeatures || !props.nextFeatures[featureKey]) {
-              return false;
-            }
-            return isMatchRule(input, props.nextFeatures[featureKey]);
-          }) === true
+      const { after, length } = rule;
+      const nextIsLastTokenInWord =
+        props.nextIsLastTokenInWord && length?.after
+          ? length.after.nextIsLastTokenInWord === true
+          : true;
+
+      const remainLengthPassed =
+        length?.after && props.nextFeatures?.surface_form
+          ? length.after.largerThan
+            ? props.nextFeatures.surface_form.length >= length.after.largerThan
+            : length.after.shorterThan
+              ? props.nextFeatures.surface_form.length <= length.after.shorterThan
+              : true
+          : true;
+
+      return after
+        ? after[key as keyof IpadicFeatures]?.some((input) => {
+          const featureKey = key as keyof IpadicFeatures;
+          if (!props.nextFeatures || !props.nextFeatures[featureKey]) {
+            return false;
+          }
+          return isMatchRule(input, props.nextFeatures[featureKey]);
+        }) === true &&
+        nextIsLastTokenInWord &&
+        remainLengthPassed
         : false;
     });
 
