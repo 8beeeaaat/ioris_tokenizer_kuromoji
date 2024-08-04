@@ -12,7 +12,7 @@ export default [
   {
     languageOptions: { globals: globals.browser },
     rules: {
-      'no-console': ['error', { allow: ['warn', 'error'] }],
+      'no-console': ['error', { allow: ['warn', 'error', 'dir'] }],
       'sort-imports': ['error', { ignoreDeclarationSort: true }],
       '@typescript-eslint/no-namespace': 'off',
       quotes: ['error', 'single'],
