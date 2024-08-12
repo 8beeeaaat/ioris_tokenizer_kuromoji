@@ -1,9 +1,15 @@
-import { LineCreateArgs, WordTimeline } from '@ioris/core';
-import { IpadicFeatures, Tokenizer } from 'kuromoji';
+import type { LineCreateArgs, WordTimeline } from "@ioris/core";
+import type { IpadicFeatures, Tokenizer } from "kuromoji";
+import {
+  DEFAULT_BRAKE_RULES,
+  DEFAULT_WHITESPACE_RULES,
+  regExpCloseParentheses,
+  regExpNotAlphabetOrNumber,
+} from "./rules";
 
 type RuleInput = RegExp | [...string[], boolean];
 
-const DEBUG = process.env.NODE_ENV !== 'production'; // or false, depending on your needs
+const DEBUG = process.env.NODE_ENV !== "production";
 
 export type TokenizeRule = {
   before?: {
@@ -26,6 +32,11 @@ export type TokenizeRule = {
       shorterThan?: number;
       nextIsLastTokenInWord?: boolean;
     };
+    past?: {
+      largerThan?: number;
+      shorterThan?: number;
+      forFirstToken?: boolean;
+    };
     remaining?: {
       largerThan?: number;
       shorterThan?: number;
@@ -33,498 +44,42 @@ export type TokenizeRule = {
       forLastToken?: boolean;
     };
   };
-  insert?: 'before' | 'current';
+  insert?: "before" | "current";
 };
 
-const regExpAlphabetOrNumber = new RegExp(/^(.*[a-zA-Z1-9'"`]).*$/);
-const regExpNotAlphabetOrNumber = new RegExp(/^(?!.*[a-zA-Z1-9'"`]).*$/);
-const regExpPeriod = new RegExp(/^(.*[.,!?]).*$/);
-const regExpWhitespace = new RegExp(/^\s+$/);
+function countNonParenthesesCharacters(text: string):
+  | {
+      begin: number;
+      end: number;
+      text: string;
+    }[]
+  | undefined {
+  // "", '', `` に囲まれた文字列を抽出
+  const apostropheMatches = [
+    ...text.matchAll(new RegExp(/["'][^"']*["']|`[^`]*`/g)),
+  ];
+  const parenthesesMatches = [
+    ...text.matchAll(
+      new RegExp(
+        /[\[\(\（「『【〝❝“][^\]\)\）」』】〟❞”]*[\]\)\）」』】〟❞”]/g,
+      ),
+    ),
+  ];
+  const matches = [...parenthesesMatches, ...apostropheMatches];
 
-export const DEFAULT_BRAKE_RULES: TokenizeRule[] = [
-  {
-    before: {
-      surface_form: [regExpAlphabetOrNumber],
-    },
-    current: {
-      surface_form: [regExpWhitespace],
-    },
-    after: {
-      surface_form: [regExpNotAlphabetOrNumber],
-    },
-    length: {
-      remaining: {
-        largerThan: 5,
-      },
-    },
-    insert: 'before',
-  },
-  {
-    before: {
-      surface_form: [regExpNotAlphabetOrNumber],
-    },
-    current: {
-      surface_form: [regExpWhitespace],
-    },
-    after: {
-      surface_form: [regExpAlphabetOrNumber],
-    },
-    length: {
-      remaining: {
-        largerThan: 5,
-      },
-    },
-    insert: 'before',
-  },
-  {
-    before: {
-      surface_form: [regExpNotAlphabetOrNumber],
-    },
-    current: {
-      surface_form: [regExpWhitespace],
-    },
-    length: {
-      remaining: {
-        largerThan: 8,
-      },
-    },
-    insert: 'before',
-  },
-  {
-    before: {
-      surface_form: [regExpNotAlphabetOrNumber],
-    },
-    current: {
-      surface_form: [regExpWhitespace],
-    },
-    after: {
-      surface_form: [regExpNotAlphabetOrNumber],
-    },
-    insert: 'before',
-  },
-  {
-    current: {
-      surface_form: [regExpPeriod],
-    },
-    length: {
-      remaining: {
-        largerThan: 8,
-        forLastToken: true,
-      },
-    },
-  },
-  {
-    current: {
-      pos_detail_1: [['読点', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['固有名詞', false]],
-    },
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['一般', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['固有名詞', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['接尾', true]],
-    },
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['サ変接続', true]],
-    },
-  },
-  {
-    before: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['接尾', false]],
-    },
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-    },
-  },
-  {
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['形容動詞語幹', false]],
-    },
-    after: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['一般', '固有名詞', '数', false]],
-    },
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['接尾', false]],
-      pos_detail_2: [['助数詞', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['接尾', false]],
-      pos_detail_2: [['一般', true]],
-    },
-  },
-  {
-    before: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['一般', '固有名詞', false]],
-    },
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['接尾', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['一般', '固有名詞', false]],
-    },
-    length: {
-      remaining: {
-        nextIsLastTokenInWord: true,
-      },
-    },
-  },
-  {
-    before: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['連体化', false]],
-    },
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['一般', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['接尾', false]],
-    },
-    length: {
-      remaining: {
-        largerThan: 4,
-      },
-    },
-  },
-  {
-    before: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', false]],
-    },
-    current: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-    length: {
-      remaining: {
-        nextIsLastTokenInWord: true,
-        largerThan: 4,
-      },
-    },
-  },
-  {
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', false]],
-    },
-    after: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-      conjugated_form: [['連用タ接続', false]],
-    },
-    length: {
-      remaining: {
-        largerThan: 4,
-      },
-    },
-  },
-  {
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', false]],
-      pos_detail_2: [['引用', false]],
-    },
-    after: {
-      pos: [['動詞', false], ['助詞', false]],
-      pos_detail_1: [['係助詞', true]],
-    },
-  },
-  {
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['接続助詞', '終助詞', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['連体化', false]],
-    },
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['一般', false]],
-    },
-    after: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['接尾', true]],
-    },
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['連体化', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['サ変接続', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['名詞', false]],
-    },
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['副助詞', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['名詞', false]],
-    },
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['副助詞', false]],
-    },
-    after: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-      conjugated_form: [['連用形', true]],
-    },
-  },
-  {
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['非自立', false]],
-      pos_detail_2: [['副詞可能', false]],
-    },
-    after: {
-      pos: [['副詞', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['副詞', false]],
-    },
-    current: {
-      pos: [['名詞', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-    },
-  },
-
-  {
-    before: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', true]],
-    },
-    current: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-      conjugated_type: [['五段・タ行', true]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['非自立', true]],
-    },
-    length: {
-      after: {
-        nextIsLastTokenInWord: false,
-      },
-    },
-  },
-  {
-    before: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', false]],
-    },
-    current: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['非自立', '副詞可能', true]],
-    },
-  },
-  {
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['係助詞', false]],
-    },
-    after: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-      conjugated_form: [['連用形', '未然ウ接続', true]],
-    },
-  },
-  {
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['係助詞', false]],
-    },
-    after: {
-      pos: [['名詞', '副詞', false]],
-    },
-    length: {
-      after: {
-        nextIsLastTokenInWord: false,
-      },
-    },
-  },
-
-  {
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', false]],
-    },
-    after: {
-      pos: [['連体詞', false]],
-    },
-  },
-
-
-  {
-    before: {
-      pos: [['助動詞', false]],
-    },
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['格助詞', false]],
-    },
-    after: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['助動詞', false]],
-    },
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['一般', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['一般', false]],
-    },
-    length: {
-      after: {
-        nextIsLastTokenInWord: false,
-      },
-    },
-  },
-  {
-    current: {
-      pos: [['助動詞', false]],
-      conjugated_form: [['体言接続', true]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['非自立', '副詞可能', true]],
-    },
-  },
-  {
-    current: {
-      pos: [['助動詞', false]],
-      conjugated_form: [['仮定形', false]],
-    },
-    after: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-    current: {
-      pos: [['助詞', false]],
-      pos_detail_1: [['接続助詞', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['形容動詞語幹', false]],
-    },
-  },
-  {
-    before: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-    current: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['非自立', false]],
-    },
-    after: {
-      pos: [['動詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-  },
-  {
-    current: {
-      pos: [['形容詞', false]],
-      pos_detail_1: [['自立', false]],
-    },
-    after: {
-      pos: [['名詞', false]],
-      pos_detail_1: [['接尾', true]],
-    },
-    length: {
-      remaining: {
-        largerThan: 10,
-      },
-    },
-  },
-];
-
-export const DEFAULT_WHITESPACE_RULES: TokenizeRule[] = [
-  {
-    after: {
-      surface_form: [regExpWhitespace],
-    },
-  },
-];
+  return [
+    ...matches.map((match) => {
+      const begin = match.index + 1;
+      const end = begin + (match[0].length - 2);
+      const extractedText = text.slice(begin, end);
+      return {
+        begin,
+        end,
+        text: extractedText,
+      };
+    }),
+  ];
+}
 
 export async function LineArgsTokenizer(props: {
   lineArgs: LineCreateArgs;
@@ -540,16 +95,18 @@ export async function LineArgsTokenizer(props: {
     >
   >((acc, timeline, index) => {
     const timelinePosition = index + 1;
-    const tokens = tokenizer.tokenize(timeline.text);
+
+    // 特殊な文字列はスペースで区切る
+    const text = timeline.text.replaceAll(")(", ") (");
+    const tokens = tokenizer.tokenize(text);
     const last = acc.get(timelinePosition) || new Map();
 
-    tokens.forEach((features) => {
-      const currentWordText = timeline.text || '';
+    for (const features of tokens) {
       const currentFeaturesText = Array.from(
-        acc.get(timelinePosition)?.values() || []
+        acc.get(timelinePosition)?.values() || [],
       )
         .map((token) => token.features.surface_form)
-        .join('');
+        .join("");
 
       if (last.size === 0) {
         last.set(1, {
@@ -557,10 +114,10 @@ export async function LineArgsTokenizer(props: {
           timeline,
         });
         acc.set(timelinePosition, last);
-        return;
+        continue;
       }
 
-      if (currentWordText === currentFeaturesText) {
+      if (text === currentFeaturesText) {
         const timeline = lineArgs.timelines[acc.size];
         const newMap = new Map();
         newMap.set(1, {
@@ -578,16 +135,18 @@ export async function LineArgsTokenizer(props: {
           acc.set(timelinePosition, last);
         }
       }
-    });
+    }
 
     return acc;
   }, new Map());
 
-  return convertTokensToLineArgs(
+  const args = convertTokensToLineArgs(
     tokensByLinePosition,
     props.brakeRules,
-    props.whitespaceRules
+    props.whitespaceRules,
   );
+
+  return args;
 }
 
 function convertTokensToLineArgs(
@@ -596,59 +155,92 @@ function convertTokensToLineArgs(
     Map<number, { features: IpadicFeatures; timeline: WordTimeline }>
   >,
   brakeRules: TokenizeRule[] = DEFAULT_BRAKE_RULES,
-  whitespaceRules: TokenizeRule[] = DEFAULT_WHITESPACE_RULES
+  whitespaceRules: TokenizeRule[] = DEFAULT_WHITESPACE_RULES,
 ): Map<number, LineCreateArgs> {
+  let lastHasBrakePosition = 0;
   return Array.from(tokensByLinePosition).reduce<Map<number, LineCreateArgs>>(
     (lineAcc, [linePosition, tokens]) => {
       const lineTokens = Array.from(tokens);
+      const first = lineTokens[0]?.[1];
+      const firstToken = first ? first.features : undefined;
       const last = lineTokens.at(-1)?.[1];
       const lastToken = last ? last.features : undefined;
-      const wordsMap: LineCreateArgs['timelines'] = lineTokens.reduce<
-        LineCreateArgs['timelines']
+      const wordsMap: LineCreateArgs["timelines"] = lineTokens.reduce<
+        LineCreateArgs["timelines"]
       >((wordAcc, [wordPosition, { features, timeline }]) => {
-        const durationByChar = parseFloat(
+        const beforeFeatures = tokens.get(wordPosition - 1)?.features;
+        const nextFeatures = tokens.get(wordPosition + 1)?.features;
+        const countInParentheses = countNonParenthesesCharacters(timeline.text);
+        const hasParentheses = countInParentheses !== undefined;
+        const isCloseParentheses =
+          hasParentheses && nextFeatures
+            ? regExpNotAlphabetOrNumber.test(nextFeatures.surface_form) &&
+              countInParentheses.some((parentheses) => {
+                return parentheses.end + 1 === features.word_position;
+              })
+            : false;
+        const inParentheses = hasParentheses
+          ? countInParentheses
+              .filter((parentheses) => {
+                return (
+                  parentheses.begin < features.word_position &&
+                  features.word_position < parentheses.end
+                );
+              })
+              .find((parentheses) => {
+                return parentheses.text.length <= 10;
+              }) !== undefined
+          : false;
+
+        const durationByChar = Number.parseFloat(
           (
             (timeline.end - timeline.begin) /
-            timeline.text.replaceAll(/\s+/g, '').length
-          ).toFixed(3)
+            timeline.text.replaceAll(/\s+/g, "").length
+          ).toFixed(3),
         );
         const duration = durationByChar * features.surface_form.length;
         const begin =
           wordPosition === 1
             ? timeline.begin
             : wordAcc[wordAcc.length - 1]?.end || 0;
-        const beforeFeatures = tokens.get(wordPosition - 1)?.features;
-        const nextFeatures = tokens.get(wordPosition + 1)?.features;
 
         const lastTokenInWord = wordPosition === tokens.size;
         const nextIsLastTokenInWord =
           tokens.get(wordPosition + 2)?.features === undefined;
 
-        const remainSpaceIndexes = timeline.text
-          .split('')
+        const spaceIndexes = timeline.text
+          .split("")
           .reduce<number[]>((acc, char, index) => {
-            if (char === ' ') {
+            if (char === " ") {
               acc.push(index);
             }
             return acc;
           }, []);
 
-        const nextSpaceIndex = remainSpaceIndexes.find(
-          (index) => index > features.word_position
+        const nextSpaceIndex = spaceIndexes.find(
+          (index) => index > features.word_position,
         );
 
-        const remainLengthBetweenNextSpace = nextSpaceIndex
+        const remainLengthBetweenBeforeBrake = lastHasBrakePosition
+          ? features.word_position - lastHasBrakePosition
+          : 0;
+
+        const remainLengthBetweenNextBrake = nextSpaceIndex
           ? nextSpaceIndex +
-          1 -
-          features.word_position -
-          features.surface_form.length
+            1 -
+            features.word_position -
+            features.surface_form.length
+          : 0;
+
+        const remainTextLengthForLineFirst = firstToken
+          ? features.word_position - firstToken.word_position
           : 0;
 
         const remainTextLengthForLineEnd = lastToken
           ? lastToken.word_position +
-          lastToken.surface_form.length -
-          features.word_position -
-          features.surface_form.length
+            lastToken.surface_form.length -
+            features.word_position -
+            features.surface_form.length
           : 0;
 
         const hasNewLine = checkMatchedRules({
@@ -658,7 +250,9 @@ function convertTokensToLineArgs(
           lastTokenInWord,
           nextIsLastTokenInWord,
           rules: brakeRules,
-          remainLengthBetweenNextSpace,
+          remainLengthBetweenBeforeBrake,
+          remainLengthBetweenNextBrake,
+          remainTextLengthForLineFirst,
           remainTextLengthForLineEnd,
         });
         const hasWhitespace = checkMatchedRules({
@@ -668,50 +262,66 @@ function convertTokensToLineArgs(
           lastTokenInWord,
           nextIsLastTokenInWord,
           rules: whitespaceRules,
-          remainLengthBetweenNextSpace,
+          remainLengthBetweenBeforeBrake,
+          remainLengthBetweenNextBrake,
+          remainTextLengthForLineFirst,
           remainTextLengthForLineEnd,
         });
 
         if (DEBUG) {
           // eslint-disable-next-line no-console
           console.table({
+            inParentheses,
+            lastHasBrakePosition,
+            wordPosition,
             beforeFeatures,
             features,
             nextFeatures,
-            remainLengthBetweenNextSpace,
+            remainLengthBetweenBeforeBrake,
+            remainLengthBetweenNextBrake,
+            remainTextLengthForLineFirst,
             remainTextLengthForLineEnd,
             nextIsLastTokenInWord,
-            // hasNewLine,
-            // hasWhitespace,
+            hasNewLine,
+            hasWhitespace,
           });
+          console.dir(countInParentheses, { depth: null });
           console.dir(hasNewLine, { depth: null });
+          console.dir(hasWhitespace, { depth: null });
         }
 
-        const hasNewLineMatchedRule = hasNewLine.matchedRule !== undefined;
+        const hasNewLineMatchedRule =
+          (nextFeatures && isCloseParentheses) ||
+          hasNewLine.matchedRule !== undefined;
+        if (hasNewLineMatchedRule) {
+          lastHasBrakePosition = wordPosition - lastHasBrakePosition;
+        }
 
         if (
+          !inParentheses &&
           hasNewLineMatchedRule &&
-          hasNewLine.matchedRule?.insert === 'before'
+          hasNewLine.matchedRule?.insert === "before"
         ) {
           wordAcc[wordAcc.length - 1].hasNewLine = true;
         }
 
         if (features.surface_form.match(/^\s+$/)) {
+          if (hasNewLineMatchedRule) {
+            wordAcc[wordAcc.length - 1].hasNewLine = true;
+          }
           return wordAcc;
         }
 
-        const end = lastTokenInWord
-          ? timeline.end
-          : parseFloat((begin + duration).toFixed(3));
+        const end = Number.parseFloat((begin + duration).toFixed(3));
 
         wordAcc.push({
           begin,
           end,
           text: features.surface_form,
           hasNewLine:
+            !inParentheses &&
             hasNewLineMatchedRule &&
-            (hasNewLine.matchedRule?.insert === undefined ||
-              hasNewLine.matchedRule?.insert === 'current'),
+            hasNewLine.matchedRule?.insert !== "before",
           hasWhitespace: hasWhitespace.matchedRule !== undefined,
         });
         return wordAcc;
@@ -723,15 +333,15 @@ function convertTokensToLineArgs(
       });
       return lineAcc;
     },
-    new Map<number, LineCreateArgs>()
+    new Map<number, LineCreateArgs>(),
   );
 }
 
 function isMatchRule(
   input: RuleInput,
-  value: IpadicFeatures[keyof IpadicFeatures]
+  value: IpadicFeatures[keyof IpadicFeatures],
 ): boolean {
-  if (value === undefined || typeof value !== 'string') {
+  if (value === undefined || typeof value !== "string") {
     return false;
   }
   if (Array.isArray(input)) {
@@ -750,7 +360,9 @@ function checkMatchedRules(props: {
   nextFeatures: IpadicFeatures | undefined;
   lastTokenInWord: boolean;
   nextIsLastTokenInWord: boolean;
-  remainLengthBetweenNextSpace: number;
+  remainLengthBetweenBeforeBrake: number;
+  remainLengthBetweenNextBrake: number;
+  remainTextLengthForLineFirst: number;
   remainTextLengthForLineEnd: number;
 }): {
   matchedRule: TokenizeRule | undefined;
@@ -772,99 +384,134 @@ function checkMatchedRules(props: {
     after: false,
     common: false,
   };
-  if (props.lastTokenInWord) {
+
+  if (props.nextFeatures?.surface_form.match(regExpCloseParentheses)) {
     return ret;
   }
 
   props.rules.some((rule) => {
-    const beforeMatch = Object.keys(rule.before || {}).every((key) => {
-      return rule.before
-        ? rule.before[key as keyof IpadicFeatures]?.some((input) => {
-          const featureKey = key as keyof IpadicFeatures;
-          if (!props.beforeFeatures || !props.beforeFeatures[featureKey]) {
-            return false;
-          }
-          return isMatchRule(input, props.beforeFeatures[featureKey]);
-        }) === true
-        : false;
-    });
+    const beforeMatch = rule.before
+      ? Object.keys(rule.before).every((key) => {
+          return rule.before
+            ? rule.before[key as keyof IpadicFeatures]?.some((input) => {
+                const featureKey = key as keyof IpadicFeatures;
+                if (
+                  !props.beforeFeatures ||
+                  !props.beforeFeatures[featureKey]
+                ) {
+                  return false;
+                }
+                return isMatchRule(input, props.beforeFeatures[featureKey]);
+              }) === true
+            : false;
+        })
+      : true;
 
-    const currentMatch = Object.keys(rule.current || {}).every((key) => {
-      const { current, length } = rule;
-      const nextIsLastTokenInWord =
-        length && length.remaining
-          ? length.remaining.nextIsLastTokenInWord === undefined
-            ? true
-            : props.nextIsLastTokenInWord ===
-            length.remaining.nextIsLastTokenInWord
-          : true;
+    const currentMatch = rule.current
+      ? Object.keys(rule.current).every((key) => {
+          const { current, length } = rule;
+          const nextIsLastTokenInWord = length?.remaining
+            ? length.remaining.nextIsLastTokenInWord === undefined
+              ? true
+              : props.nextIsLastTokenInWord ===
+                length.remaining.nextIsLastTokenInWord
+            : true;
 
-      const remainLengthPassed = length?.remaining
-        ? length.remaining.largerThan
-          ? (length.remaining.forLastToken ||
-            props.remainLengthBetweenNextSpace === 0
-            ? props.remainTextLengthForLineEnd
-            : props.remainLengthBetweenNextSpace) >=
-          length.remaining.largerThan
-          : length.remaining.shorterThan
-            ? (length.remaining.forLastToken ||
-              props.remainLengthBetweenNextSpace === 0
-              ? props.remainTextLengthForLineEnd
-              : props.remainLengthBetweenNextSpace) <=
-            length.remaining.shorterThan
-            : true
-        : true;
+          const pastLengthPassed =
+            length === undefined
+              ? true
+              : length?.past
+                ? length.past.largerThan
+                  ? (length.past.forFirstToken ||
+                    props.remainLengthBetweenBeforeBrake === 0
+                      ? props.remainTextLengthForLineFirst
+                      : props.remainLengthBetweenBeforeBrake) >=
+                    length.past.largerThan
+                  : length.past.shorterThan
+                    ? (length.past.forFirstToken ||
+                      props.remainLengthBetweenBeforeBrake === 0
+                        ? props.remainTextLengthForLineFirst
+                        : props.remainLengthBetweenBeforeBrake) <=
+                      length.past.shorterThan
+                    : true
+                : true;
 
-      const lengthPassed = length?.current
-        ? length.current.largerThan
-          ? props.features.surface_form.length >= length.current.largerThan
-          : length.current.shorterThan
-            ? props.features.surface_form.length <= length.current.shorterThan
-            : true
-        : true;
+          const remainLengthPassed =
+            length === undefined
+              ? true
+              : length?.remaining
+                ? length.remaining.largerThan
+                  ? (length.remaining.forLastToken ||
+                    props.remainLengthBetweenNextBrake === 0
+                      ? props.remainTextLengthForLineEnd
+                      : props.remainLengthBetweenNextBrake) >=
+                    length.remaining.largerThan
+                  : length.remaining.shorterThan
+                    ? (length.remaining.forLastToken ||
+                      props.remainLengthBetweenNextBrake === 0
+                        ? props.remainTextLengthForLineEnd
+                        : props.remainLengthBetweenNextBrake) <=
+                      length.remaining.shorterThan
+                    : true
+                : true;
 
-      return current
-        ? current[key as keyof IpadicFeatures]?.some((input) => {
-          const featureKey = key as keyof IpadicFeatures;
-          if (!props.features[featureKey]) {
-            return false;
-          }
-          return isMatchRule(input, props.features[featureKey]);
-        }) === true &&
-        nextIsLastTokenInWord &&
-        remainLengthPassed &&
-        lengthPassed
-        : false;
-    });
+          const lengthPassed = length?.current
+            ? length.current.largerThan
+              ? props.features.surface_form.length >= length.current.largerThan
+              : length.current.shorterThan
+                ? props.features.surface_form.length <=
+                  length.current.shorterThan
+                : true
+            : true;
 
-    const afterMatch = Object.keys(rule.after || {}).every((key) => {
-      const { after, length } = rule;
-      const nextIsLastTokenInWord =
-        props.nextIsLastTokenInWord && length?.after
-          ? length.after.nextIsLastTokenInWord === true
-          : true;
+          return current
+            ? current[key as keyof IpadicFeatures]?.some((input) => {
+                const featureKey = key as keyof IpadicFeatures;
+                if (!props.features[featureKey]) {
+                  return false;
+                }
+                return isMatchRule(input, props.features[featureKey]);
+              }) === true &&
+                nextIsLastTokenInWord &&
+                pastLengthPassed &&
+                remainLengthPassed &&
+                lengthPassed
+            : false;
+        })
+      : true;
 
-      const remainLengthPassed =
-        length?.after && props.nextFeatures?.surface_form
-          ? length.after.largerThan
-            ? props.nextFeatures.surface_form.length >= length.after.largerThan
-            : length.after.shorterThan
-              ? props.nextFeatures.surface_form.length <= length.after.shorterThan
-              : true
-          : true;
+    const afterMatch = rule.after
+      ? Object.keys(rule.after).every((key) => {
+          const { after, length } = rule;
+          const nextIsLastTokenInWord =
+            props.nextIsLastTokenInWord && length?.after
+              ? length.after.nextIsLastTokenInWord === true
+              : true;
 
-      return after
-        ? after[key as keyof IpadicFeatures]?.some((input) => {
-          const featureKey = key as keyof IpadicFeatures;
-          if (!props.nextFeatures || !props.nextFeatures[featureKey]) {
-            return false;
-          }
-          return isMatchRule(input, props.nextFeatures[featureKey]);
-        }) === true &&
-        nextIsLastTokenInWord &&
-        remainLengthPassed
-        : false;
-    });
+          const remainLengthPassed =
+            length?.after && props.nextFeatures?.surface_form
+              ? length.after.largerThan
+                ? props.nextFeatures.surface_form.length >=
+                  length.after.largerThan
+                : length.after.shorterThan
+                  ? props.nextFeatures.surface_form.length <=
+                    length.after.shorterThan
+                  : true
+              : true;
+
+          return after
+            ? after[key as keyof IpadicFeatures]?.some((input) => {
+                const featureKey = key as keyof IpadicFeatures;
+                if (!props.nextFeatures || !props.nextFeatures[featureKey]) {
+                  return false;
+                }
+                return isMatchRule(input, props.nextFeatures[featureKey]);
+              }) === true &&
+                nextIsLastTokenInWord &&
+                remainLengthPassed
+            : false;
+        })
+      : true;
 
     ret.before = beforeMatch;
     ret.current = currentMatch;
@@ -878,6 +525,16 @@ function checkMatchedRules(props: {
       return true;
     }
   });
+
+  if (props.lastTokenInWord && ret.matchedRule?.insert !== "before") {
+    return {
+      matchedRule: undefined,
+      before: false,
+      current: false,
+      after: false,
+      common: false,
+    };
+  }
 
   return ret;
 }
