@@ -1,1 +1,1 @@
-export * from './Tokenizer.Kuromoji';
+export * from "./Tokenizer.Kuromoji";
