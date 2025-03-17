@@ -1,4 +1,4 @@
-import type { LineCreateArgs, WordTimeline } from "@ioris/core";
+import type { LineCreateArgs, LineUpdateArgs, WordTimeline } from "@ioris/core";
 import type { IpadicFeatures, Tokenizer } from "kuromoji";
 import {
   DEFAULT_BRAKE_RULES,
@@ -86,7 +86,7 @@ export async function LineArgsTokenizer(props: {
   tokenizer: Tokenizer<IpadicFeatures>;
   brakeRules?: TokenizeRule[];
   whitespaceRules?: TokenizeRule[];
-}): Promise<Map<number, LineCreateArgs>> {
+}): Promise<Map<number, LineUpdateArgs>> {
   const { lineArgs, tokenizer } = props;
   const tokensByLinePosition = lineArgs.timelines.reduce<
     Map<
@@ -156,17 +156,17 @@ function convertTokensToLineArgs(
   >,
   brakeRules: TokenizeRule[] = DEFAULT_BRAKE_RULES,
   whitespaceRules: TokenizeRule[] = DEFAULT_WHITESPACE_RULES,
-): Map<number, LineCreateArgs> {
+): Map<number, LineUpdateArgs> {
   let lastHasBrakePosition = 0;
-  return Array.from(tokensByLinePosition).reduce<Map<number, LineCreateArgs>>(
+  return Array.from(tokensByLinePosition).reduce<Map<number, LineUpdateArgs>>(
     (lineAcc, [linePosition, tokens]) => {
       const lineTokens = Array.from(tokens);
       const first = lineTokens[0]?.[1];
       const firstToken = first ? first.features : undefined;
       const last = lineTokens.at(-1)?.[1];
       const lastToken = last ? last.features : undefined;
-      const wordsMap: LineCreateArgs["timelines"] = lineTokens.reduce<
-        LineCreateArgs["timelines"]
+      const wordsMap: LineUpdateArgs["timelines"] = lineTokens.reduce<
+        LineUpdateArgs["timelines"]
       >((wordAcc, [wordPosition, { features, timeline }]) => {
         const beforeFeatures = tokens.get(wordPosition - 1)?.features;
         const nextFeatures = tokens.get(wordPosition + 1)?.features;
@@ -315,6 +315,7 @@ function convertTokensToLineArgs(
         const end = Number.parseFloat((begin + duration).toFixed(3));
 
         wordAcc.push({
+          wordID: crypto.randomUUID(),
           begin,
           end,
           text: features.surface_form,
@@ -333,7 +334,7 @@ function convertTokensToLineArgs(
       });
       return lineAcc;
     },
-    new Map<number, LineCreateArgs>(),
+    new Map<number, LineUpdateArgs>(),
   );
 }
 
