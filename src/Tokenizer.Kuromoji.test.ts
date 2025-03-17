@@ -1018,7 +1018,7 @@ describe("Paragraph used Kuromoji Tokenizer", () => {
     const tokenizer = await getTokenizer();
     paragraph = await new Paragraph({
       lyricID: "1",
-      tokenizer: (lineArgs) =>
+      lineTokenizer: (lineArgs) =>
         LineArgsTokenizer({
           lineArgs,
           tokenizer,
