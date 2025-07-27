@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-07-27
+
+### Added
+
+- CLAUDE.md file with comprehensive project guidance for Claude Code integration
+- Detailed API reference section in README.md with TypeScript types and examples
+- Enhanced "How It Works" section explaining tokenizer behavior and linguistic processing
+- Example transformations showing input/output of the tokenization process
+- Development section with build, test, and code quality commands
+- Use cases section highlighting practical applications (karaoke, music apps, etc.)
+- Requirements section with specific version dependencies
+
+### Changed
+
+- **Enhanced README.md**: Complete overhaul with improved structure and detailed explanations
+- Updated usage examples to reflect current @ioris/core API (`createParagraph` instead of `Paragraph` constructor)
+- Improved feature descriptions with bullet-point formatting and clear benefits
+- Enhanced custom rules documentation with practical examples
+- Better organization of documentation sections for improved readability
+
+### Technical
+
+- Added comprehensive development guidelines in CLAUDE.md for future contributors
+- Documented high-level architecture patterns and core components
+- Included testing strategy and special considerations for lyrics processing
+- Enhanced project overview with focus on timeline-based processing and rule-based segmentation
+
 ## [0.3.0] - 2025-07-27
 
 ### Changed
