@@ -1,4 +1,4 @@
-import type { LineCreateArgs, LineUpdateArgs, WordTimeline } from "@ioris/core";
+import type { CreateLineArgs, WordTimeline } from "@ioris/core";
 import type { IpadicFeatures, Tokenizer } from "kuromoji";
 import {
   DEFAULT_BRAKE_RULES,
@@ -60,9 +60,7 @@ function countNonParenthesesCharacters(text: string):
   ];
   const parenthesesMatches = [
     ...text.matchAll(
-      new RegExp(
-        /[\[\(\（「『【〝❝“][^\]\)\）」』】〟❞”]*[\]\)\）」』】〟❞”]/g,
-      ),
+      new RegExp(/[[(（「『【〝❝“][^\])）」』】〟❞”]*[\])）」』】〟❞”]/g),
     ),
   ];
   const matches = [...parenthesesMatches, ...apostropheMatches];
@@ -82,63 +80,76 @@ function countNonParenthesesCharacters(text: string):
 }
 
 export async function LineArgsTokenizer(props: {
-  lineArgs: LineCreateArgs;
+  lineArgs: CreateLineArgs;
   tokenizer: Tokenizer<IpadicFeatures>;
   brakeRules?: TokenizeRule[];
   whitespaceRules?: TokenizeRule[];
-}): Promise<Map<number, LineUpdateArgs>> {
+}): Promise<Map<number, CreateLineArgs>> {
   const { lineArgs, tokenizer } = props;
   const tokensByLinePosition = lineArgs.timelines.reduce<
     Map<
       number,
       Map<number, { features: IpadicFeatures; timeline: WordTimeline }>
     >
-  >((acc, timeline, index) => {
-    const timelinePosition = index + 1;
+  >(
+    (
+      acc: Map<
+        number,
+        Map<number, { features: IpadicFeatures; timeline: WordTimeline }>
+      >,
+      timeline: WordTimeline,
+      index: number,
+    ) => {
+      const timelinePosition = index + 1;
 
-    // 特殊な文字列はスペースで区切る
-    const text = timeline.text.replaceAll(")(", ") (");
-    const tokens = tokenizer.tokenize(text);
-    const last = acc.get(timelinePosition) || new Map();
+      // 特殊な文字列はスペースで区切る
+      const text = timeline.text.replaceAll(")(", ") (");
+      const tokens = tokenizer.tokenize(text);
+      const last = acc.get(timelinePosition) || new Map();
 
-    for (const features of tokens) {
-      const currentFeaturesText = Array.from(
-        acc.get(timelinePosition)?.values() || [],
-      )
-        .map((token) => token.features.surface_form)
-        .join("");
+      for (const features of tokens) {
+        const currentFeaturesText = Array.from(
+          acc.get(timelinePosition)?.values() || [],
+        )
+          .map(
+            (token: { features: IpadicFeatures; timeline: WordTimeline }) =>
+              token.features.surface_form,
+          )
+          .join("");
 
-      if (last.size === 0) {
-        last.set(1, {
-          features,
-          timeline,
-        });
-        acc.set(timelinePosition, last);
-        continue;
-      }
-
-      if (text === currentFeaturesText) {
-        const timeline = lineArgs.timelines[acc.size];
-        const newMap = new Map();
-        newMap.set(1, {
-          features,
-          timeline,
-        });
-        acc.set(timelinePosition, newMap);
-      } else {
-        const timeline = lineArgs.timelines[timelinePosition - 1];
-        if (timeline) {
-          last.set(last.size + 1, {
+        if (last.size === 0) {
+          last.set(1, {
             features,
             timeline,
           });
           acc.set(timelinePosition, last);
+          continue;
+        }
+
+        if (text === currentFeaturesText) {
+          const timeline = lineArgs.timelines[acc.size];
+          const newMap = new Map();
+          newMap.set(1, {
+            features,
+            timeline,
+          });
+          acc.set(timelinePosition, newMap);
+        } else {
+          const timeline = lineArgs.timelines[timelinePosition - 1];
+          if (timeline) {
+            last.set(last.size + 1, {
+              features,
+              timeline,
+            });
+            acc.set(timelinePosition, last);
+          }
         }
       }
-    }
 
-    return acc;
-  }, new Map());
+      return acc;
+    },
+    new Map(),
+  );
 
   const args = convertTokensToLineArgs(
     tokensByLinePosition,
@@ -156,177 +167,180 @@ function convertTokensToLineArgs(
   >,
   brakeRules: TokenizeRule[] = DEFAULT_BRAKE_RULES,
   whitespaceRules: TokenizeRule[] = DEFAULT_WHITESPACE_RULES,
-): Map<number, LineUpdateArgs> {
+): Map<number, CreateLineArgs> {
   let lastHasBrakePosition = 0;
-  return Array.from(tokensByLinePosition).reduce<Map<number, LineUpdateArgs>>(
+  return Array.from(tokensByLinePosition).reduce<Map<number, CreateLineArgs>>(
     (lineAcc, [linePosition, tokens]) => {
       const lineTokens = Array.from(tokens);
       const first = lineTokens[0]?.[1];
       const firstToken = first ? first.features : undefined;
-      const last = lineTokens.at(-1)?.[1];
+      const last = lineTokens[lineTokens.length - 1]?.[1];
       const lastToken = last ? last.features : undefined;
-      const wordsMap: LineUpdateArgs["timelines"] = lineTokens.reduce<
-        LineUpdateArgs["timelines"]
-      >((wordAcc, [wordPosition, { features, timeline }]) => {
-        const beforeFeatures = tokens.get(wordPosition - 1)?.features;
-        const nextFeatures = tokens.get(wordPosition + 1)?.features;
-        const countInParentheses = countNonParenthesesCharacters(timeline.text);
-        const hasParentheses = countInParentheses !== undefined;
-        const isCloseParentheses =
-          hasParentheses && nextFeatures
-            ? regExpNotAlphabetOrNumber.test(nextFeatures.surface_form) &&
-              countInParentheses.some((parentheses) => {
-                return parentheses.end + 1 === features.word_position;
-              })
+      const wordsMap: WordTimeline[] = lineTokens.reduce<WordTimeline[]>(
+        (wordAcc, [wordPosition, { features, timeline }]) => {
+          const beforeFeatures = tokens.get(wordPosition - 1)?.features;
+          const nextFeatures = tokens.get(wordPosition + 1)?.features;
+          const countInParentheses = countNonParenthesesCharacters(
+            timeline.text,
+          );
+          const hasParentheses = countInParentheses !== undefined;
+          const isCloseParentheses =
+            hasParentheses && nextFeatures
+              ? regExpNotAlphabetOrNumber.test(nextFeatures.surface_form) &&
+                countInParentheses.some((parentheses) => {
+                  return parentheses.end + 1 === features.word_position;
+                })
+              : false;
+          const inParentheses = hasParentheses
+            ? countInParentheses
+                .filter((parentheses) => {
+                  return (
+                    parentheses.begin < features.word_position &&
+                    features.word_position < parentheses.end
+                  );
+                })
+                .find((parentheses) => {
+                  return parentheses.text.length <= 10;
+                }) !== undefined
             : false;
-        const inParentheses = hasParentheses
-          ? countInParentheses
-              .filter((parentheses) => {
-                return (
-                  parentheses.begin < features.word_position &&
-                  features.word_position < parentheses.end
-                );
-              })
-              .find((parentheses) => {
-                return parentheses.text.length <= 10;
-              }) !== undefined
-          : false;
 
-        const durationByChar = Number.parseFloat(
-          (
-            (timeline.end - timeline.begin) /
-            timeline.text.replaceAll(/\s+/g, "").length
-          ).toFixed(3),
-        );
-        const duration = durationByChar * features.surface_form.length;
-        const begin =
-          wordPosition === 1
-            ? timeline.begin
-            : wordAcc[wordAcc.length - 1]?.end || 0;
+          const durationByChar = Number.parseFloat(
+            (
+              (timeline.end - timeline.begin) /
+              timeline.text.replaceAll(/\s+/g, "").length
+            ).toFixed(3),
+          );
+          const duration = durationByChar * features.surface_form.length;
+          const begin =
+            wordPosition === 1
+              ? timeline.begin
+              : wordAcc[wordAcc.length - 1]?.end || 0;
 
-        const lastTokenInWord = wordPosition === tokens.size;
-        const nextIsLastTokenInWord =
-          tokens.get(wordPosition + 2)?.features === undefined;
+          const lastTokenInWord = wordPosition === tokens.size;
+          const nextIsLastTokenInWord =
+            tokens.get(wordPosition + 2)?.features === undefined;
 
-        const spaceIndexes = timeline.text
-          .split("")
-          .reduce<number[]>((acc, char, index) => {
-            if (char === " ") {
-              acc.push(index);
-            }
-            return acc;
-          }, []);
+          const spaceIndexes = timeline.text
+            .split("")
+            .reduce<number[]>((acc: number[], char: string, index: number) => {
+              if (char === " ") {
+                acc.push(index);
+              }
+              return acc;
+            }, []);
 
-        const nextSpaceIndex = spaceIndexes.find(
-          (index) => index > features.word_position,
-        );
+          const nextSpaceIndex = spaceIndexes.find(
+            (index: number) => index > features.word_position,
+          );
 
-        const remainLengthBetweenBeforeBrake = lastHasBrakePosition
-          ? features.word_position - lastHasBrakePosition
-          : 0;
+          const remainLengthBetweenBeforeBrake = lastHasBrakePosition
+            ? features.word_position - lastHasBrakePosition
+            : 0;
 
-        const remainLengthBetweenNextBrake = nextSpaceIndex
-          ? nextSpaceIndex +
-            1 -
-            features.word_position -
-            features.surface_form.length
-          : 0;
+          const remainLengthBetweenNextBrake = nextSpaceIndex
+            ? nextSpaceIndex +
+              1 -
+              features.word_position -
+              features.surface_form.length
+            : 0;
 
-        const remainTextLengthForLineFirst = firstToken
-          ? features.word_position - firstToken.word_position
-          : 0;
+          const remainTextLengthForLineFirst = firstToken
+            ? features.word_position - firstToken.word_position
+            : 0;
 
-        const remainTextLengthForLineEnd = lastToken
-          ? lastToken.word_position +
-            lastToken.surface_form.length -
-            features.word_position -
-            features.surface_form.length
-          : 0;
+          const remainTextLengthForLineEnd = lastToken
+            ? lastToken.word_position +
+              lastToken.surface_form.length -
+              features.word_position -
+              features.surface_form.length
+            : 0;
 
-        const hasNewLine = checkMatchedRules({
-          beforeFeatures,
-          features,
-          nextFeatures,
-          lastTokenInWord,
-          nextIsLastTokenInWord,
-          rules: brakeRules,
-          remainLengthBetweenBeforeBrake,
-          remainLengthBetweenNextBrake,
-          remainTextLengthForLineFirst,
-          remainTextLengthForLineEnd,
-        });
-        const hasWhitespace = checkMatchedRules({
-          beforeFeatures,
-          features,
-          nextFeatures,
-          lastTokenInWord,
-          nextIsLastTokenInWord,
-          rules: whitespaceRules,
-          remainLengthBetweenBeforeBrake,
-          remainLengthBetweenNextBrake,
-          remainTextLengthForLineFirst,
-          remainTextLengthForLineEnd,
-        });
-
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.table({
-            inParentheses,
-            lastHasBrakePosition,
-            wordPosition,
+          const hasNewLine = checkMatchedRules({
             beforeFeatures,
             features,
             nextFeatures,
+            lastTokenInWord,
+            nextIsLastTokenInWord,
+            rules: brakeRules,
             remainLengthBetweenBeforeBrake,
             remainLengthBetweenNextBrake,
             remainTextLengthForLineFirst,
             remainTextLengthForLineEnd,
-            nextIsLastTokenInWord,
-            hasNewLine,
-            hasWhitespace,
           });
-          console.dir(countInParentheses, { depth: null });
-          console.dir(hasNewLine, { depth: null });
-          console.dir(hasWhitespace, { depth: null });
-        }
+          const hasWhitespace = checkMatchedRules({
+            beforeFeatures,
+            features,
+            nextFeatures,
+            lastTokenInWord,
+            nextIsLastTokenInWord,
+            rules: whitespaceRules,
+            remainLengthBetweenBeforeBrake,
+            remainLengthBetweenNextBrake,
+            remainTextLengthForLineFirst,
+            remainTextLengthForLineEnd,
+          });
 
-        const hasNewLineMatchedRule =
-          (nextFeatures && isCloseParentheses) ||
-          hasNewLine.matchedRule !== undefined;
-        if (hasNewLineMatchedRule) {
-          lastHasBrakePosition = wordPosition - lastHasBrakePosition;
-        }
-
-        if (
-          !inParentheses &&
-          hasNewLineMatchedRule &&
-          hasNewLine.matchedRule?.insert === "before"
-        ) {
-          wordAcc[wordAcc.length - 1].hasNewLine = true;
-        }
-
-        if (features.surface_form.match(/^\s+$/)) {
-          if (hasNewLineMatchedRule) {
-            wordAcc[wordAcc.length - 1].hasNewLine = true;
+          if (DEBUG) {
+            // eslint-disable-next-line no-console
+            console.table({
+              inParentheses,
+              lastHasBrakePosition,
+              wordPosition,
+              beforeFeatures,
+              features,
+              nextFeatures,
+              remainLengthBetweenBeforeBrake,
+              remainLengthBetweenNextBrake,
+              remainTextLengthForLineFirst,
+              remainTextLengthForLineEnd,
+              nextIsLastTokenInWord,
+              hasNewLine,
+              hasWhitespace,
+            });
+            console.dir(countInParentheses, { depth: null });
+            console.dir(hasNewLine, { depth: null });
+            console.dir(hasWhitespace, { depth: null });
           }
-          return wordAcc;
-        }
 
-        const end = Number.parseFloat((begin + duration).toFixed(3));
+          const hasNewLineMatchedRule =
+            (nextFeatures && isCloseParentheses) ||
+            hasNewLine.matchedRule !== undefined;
+          if (hasNewLineMatchedRule) {
+            lastHasBrakePosition = wordPosition - lastHasBrakePosition;
+          }
 
-        wordAcc.push({
-          wordID: crypto.randomUUID(),
-          begin,
-          end,
-          text: features.surface_form,
-          hasNewLine:
+          if (
             !inParentheses &&
             hasNewLineMatchedRule &&
-            hasNewLine.matchedRule?.insert !== "before",
-          hasWhitespace: hasWhitespace.matchedRule !== undefined,
-        });
-        return wordAcc;
-      }, []);
+            hasNewLine.matchedRule?.insert === "before"
+          ) {
+            wordAcc[wordAcc.length - 1].hasNewLine = true;
+          }
+
+          if (features.surface_form.match(/^\s+$/)) {
+            if (hasNewLineMatchedRule) {
+              wordAcc[wordAcc.length - 1].hasNewLine = true;
+            }
+            return wordAcc;
+          }
+
+          const end = Number.parseFloat((begin + duration).toFixed(3));
+
+          wordAcc.push({
+            wordID: crypto.randomUUID(),
+            begin,
+            end,
+            text: features.surface_form,
+            hasNewLine:
+              !inParentheses &&
+              hasNewLineMatchedRule &&
+              hasNewLine.matchedRule?.insert !== "before",
+            hasWhitespace: hasWhitespace.matchedRule !== undefined,
+          });
+          return wordAcc;
+        },
+        [],
+      );
 
       lineAcc.set(lineAcc.size + 1, {
         position: linePosition,
@@ -334,7 +348,7 @@ function convertTokensToLineArgs(
       });
       return lineAcc;
     },
-    new Map<number, LineUpdateArgs>(),
+    new Map<number, CreateLineArgs>(),
   );
 }
 
