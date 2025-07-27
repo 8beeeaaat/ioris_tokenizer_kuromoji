@@ -59,7 +59,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@ioris/core": "^0.3.2",
+    "@ioris/core": "^0.3.3",
     "kuromoji": "^0.1.2"
   }
 }
