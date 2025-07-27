@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- update @iori/core to 0.3.3
+- Update @iori/core to 0.3.3
 - Updated Node.js version to 24.4 in CI workflows for improved compatibility and latest features
 - Enhanced CI/CD stability with specific Node.js version pinning instead of using version ranges
 
