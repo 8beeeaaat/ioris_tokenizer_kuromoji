@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2025-07-27
+
+### Changed
+
+- Update @iori/core to 0.3.3
+- Updated Node.js version to 24.4 in CI workflows for improved compatibility and latest features
+- Enhanced CI/CD stability with specific Node.js version pinning instead of using version ranges
+
+### Technical
+
+- Modified GitHub Actions workflows (development.yml and release.yml) to use Node.js 24.4 specifically
+- Improved build consistency by removing version range specification ('24.x' → '24.4')
+
 ## [0.3.1] - 2025-07-27
 
 ### Added
