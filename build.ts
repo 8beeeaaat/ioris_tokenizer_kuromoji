@@ -1,5 +1,8 @@
 import { type BuildOptions, build } from "esbuild";
-import { dependencies } from "./package.json";
+import pkg from "./package.json" with { type: "json" };
+
+const { dependencies } = pkg;
+
 const entryFile = "./src/index.ts";
 const shared: BuildOptions = {
   bundle: true,
@@ -14,10 +17,4 @@ build({
   ...shared,
   format: "esm",
   outfile: "./dist/index.mjs",
-});
-
-build({
-  ...shared,
-  format: "cjs",
-  outfile: "./dist/index.cjs",
 });

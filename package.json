@@ -2,19 +2,20 @@
   "name": "@ioris/tokenizer-kuromoji",
   "version": "0.2.0",
   "description": "",
-  "main": "dist/index.js",
+  "type": "module",
+  "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     "types": "./dist/index.d.ts",
     "import": "./dist/index.mjs",
-    "require": "./dist/index.cjs",
-    "node": "./dist/index.mjs",
-    "default": "./dist/index.cjs"
+    "default": "./dist/index.mjs"
   },
   "directories": {
     "lib": "src"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "ts-node src/index",
     "format": "biome check --fix",
@@ -24,7 +25,7 @@
     "build": "rimraf ./dist && run-p build:*",
     "build:esbuild": "ts-node build.ts",
     "build:types": "tsc",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
@@ -33,7 +34,12 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["music", "lyric", "sync", "iori"],
+  "keywords": [
+    "music",
+    "lyric",
+    "sync",
+    "iori"
+  ],
   "author": "8beeeaaat",
   "license": "MIT",
   "bugs": {
@@ -53,7 +59,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@ioris/core": "^0.3.0",
+    "@ioris/core": "^0.3.2",
     "kuromoji": "^0.1.2"
   }
 }
