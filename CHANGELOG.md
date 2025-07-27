@@ -7,16 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.2] - 2025-07-27
 
+### Added
+
+- tsx package as development dependency for improved TypeScript execution in CI environments
+
 ### Changed
 
 - Update @iori/core to 0.3.3
 - Updated Node.js version to 24.4 in CI workflows for improved compatibility and latest features
 - Enhanced CI/CD stability with specific Node.js version pinning instead of using version ranges
+- Improved build script to use tsx instead of ts-node for better Node.js 24.4 compatibility
+- Unified Node.js version to 24.4 across all CI workflow jobs (build and publish-npm)
+
+### Fixed
+
+- Resolved "Unknown file extension .ts" error in CI builds by switching from ts-node to tsx
+- Fixed Node.js version inconsistency between build and publish jobs in release workflow
 
 ### Technical
 
 - Modified GitHub Actions workflows (development.yml and release.yml) to use Node.js 24.4 specifically
 - Improved build consistency by removing version range specification ('24.x' → '24.4')
+- Enhanced TypeScript execution with tsx for better ESM support and Node.js compatibility
 
 ## [0.3.1] - 2025-07-27
 
