@@ -27,7 +27,7 @@ yarn add @ioris/tokenizer-kuromoji @ioris/core kuromoji
 
 ```javascript
 import path from "path";
-import { Paragraph } from "@ioris/core";
+import { createParagraph } from "@ioris/core";
 import { builder } from "kuromoji";
 import { LineArgsTokenizer } from "@ioris/tokenizer-kuromoji";
 
@@ -49,9 +49,8 @@ async function example() {
   // Get kuromoji tokenizer instance
   const tokenizer = await getTokenizer();
 
-  // Prepare lyrics data
+  // Prepare lyrics data with timeline information
   const lyricData = {
-    lyricID: "1",
     position: 1,
     timelines: [
       {
@@ -63,18 +62,26 @@ async function example() {
     ]
   };
 
-  // Create and initialize Paragraph instance
-  const paragraph = await new Paragraph({
+  // Create paragraph with custom tokenizer
+  const paragraph = await createParagraph({
     ...lyricData,
     lineTokenizer: (lineArgs) => LineArgsTokenizer({
       lineArgs,
       tokenizer
     })
-  }).init();
+  });
 
-  // Get processing results
-  const lines = paragraph.allLines();
-  console.log(lines[0].text());
+  // Get processing results with natural breaks
+  const lines = paragraph.lines;
+  const lineText = lines[0].words
+    .map(word => {
+      let text = word.timeline.text;
+      if (word.timeline.hasNewLine) text += '\n';
+      return text;
+    })
+    .join('');
+  
+  console.log(lineText);
   // Output: "あの花が\n咲いたのは、\nそこに\n種が落ちたからで"
 }
 
