@@ -1,15 +1,19 @@
 # @ioris/tokenizer-kuromoji
 
+A specialized tokenizer library for Japanese lyrics analysis that provides intelligent text segmentation using the Kuromoji morphological analyzer.
+
 ## Overview
 
-`@ioris/tokenizer-kuromoji` is a tokenizer library for lyrics analysis that uses the Japanese morphological analysis engine "Kuromoji". This library is designed to be used in conjunction with `@ioris/core`, providing functionality to detect natural breaks in lyrics and divide them into meaningful phrases.
+`@ioris/tokenizer-kuromoji` integrates with the `@ioris/core` framework to provide advanced lyrics tokenization capabilities. The library focuses on natural phrase breaks and proper handling of mixed Japanese/English content, making it ideal for karaoke applications, music apps, and lyrics analysis tools.
 
 ## Features
 
-- Rule sets specialized for phrase segmentation in lyrics
-- Proper handling of mixed Japanese and English lyrics
-- Special processing for parentheses and symbols
-- Natural break point detection using part-of-speech information
+- **Intelligent Segmentation**: Advanced rule-based system for natural phrase breaks
+- **Mixed Language Support**: Seamless handling of Japanese and English text
+- **Lyrics-Optimized Rules**: Specialized processing for parentheses, quotes, and repetitive patterns
+- **Timeline Preservation**: Maintains temporal relationships while adding logical segmentation
+- **Part-of-Speech Analysis**: Leverages Kuromoji's morphological analysis for accurate breaks
+- **Extensible Rule System**: Customizable rules for specific use cases
 
 ## Installation
 
