@@ -1,6 +1,6 @@
 {
   "name": "@ioris/tokenizer-kuromoji",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "",
   "type": "module",
   "main": "dist/index.mjs",
@@ -59,7 +59,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@ioris/core": "^0.3.3",
+    "@ioris/core": "^0.3.4",
     "kuromoji": "^0.1.2"
   }
 }

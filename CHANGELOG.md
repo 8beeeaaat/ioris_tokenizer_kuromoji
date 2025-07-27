@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2025-07-27
+
+### Changed
+
+- Updated @ioris/core dependency from version 0.3.3 to 0.3.4 for latest features and improvements
+
+### Removed
+
+- Removed ts-node dependency from package.json as it has been replaced by tsx for better Node.js compatibility
+
+### Technical
+
+- Cleaned up package-lock.json by removing 162 lines of ts-node related dependencies
+- Reduced package size and improved dependency management by eliminating redundant TypeScript execution tools
+
 ## [0.3.2] - 2025-07-27
 
 ### Added
